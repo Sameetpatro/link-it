@@ -2,7 +2,7 @@ package service
 
 const BASE62 = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
-func encodeBase62(num int) string{
+func EncodeBase62(num int64) string{
 	if num == 0{
 		return string(BASE62[0])
 	}
