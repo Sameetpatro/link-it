@@ -6,8 +6,8 @@ type URL struct{
 	Id int `json:"id"`
 	Shcode string `json:"shcode"`
 	Orglink string `json:"orglink"`
-	UserId *int `json:"user_id,omitempty"`
-	CreatAt string `json:"createAt"`
+	UserId *int64 `json:"user_id,omitempty"`
+	CreateAt time.Time `json:"createAt"`
 }
 
 type UrlClickCount struct{
