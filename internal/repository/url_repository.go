@@ -25,7 +25,7 @@ func (r *URLRepository) Create(ctx context.Context, url *model.URL) error {
 
 func (r *URLRepository) GetByShortCode(ctx context.Context, shortCode string) (model.URL, error) {
 	query := `
-		SELECT id, short_code, original_url, user_id, created_at 
+		SELECT id, short_code, original_url, created_at 
 		FROM urls 
 		WHERE short_code = $1
 	`
@@ -34,7 +34,6 @@ func (r *URLRepository) GetByShortCode(ctx context.Context, shortCode string) (m
 		&url.Id,
 		&url.Shcode,
 		&url.Orglink,
-		&url.UserId,
 		&url.CreateAt,
 	)
 	if err != nil {
@@ -47,15 +46,10 @@ func (r *URLRepository) GetByShortCode(ctx context.Context, shortCode string) (m
 }
 
 func (r *URLRepository) NextID() (int64, error) {
-    var id int64
-
-    err := r.db.QueryRow(
-        `SELECT nextval(pg_get_serial_sequence('urls', 'id'))`,
-    ).Scan(&id)
-
-    if err != nil {
-        return 0, err
-    }
-
-    return id, nil
+	var id int64
+	err := r.db.QueryRow("SELECT nextval('url_id_seq')").Scan(&id)
+	if err != nil {
+		return 0, err
+	}
+	return id, nil
 }

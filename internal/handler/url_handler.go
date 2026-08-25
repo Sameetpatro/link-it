@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 )
 
@@ -48,20 +47,19 @@ func (h *AppHandler) HandleShorten(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "URL empty kaise hoga babu", http.StatusBadRequest)
 		return
 	}
-
-	id := atomic.AddInt64(&idCounter, 1)
-	shortCode := service.EncodeBase62(id)
-
-	storeLock.Lock()
-	urlStore[shortCode] = req.URL
-	storeLock.Unlock()
+	url, err := h.URLService.Shorten(r.Context(), req.URL, nil)
+	if err != nil {
+		log.Printf("ERROR: Shorten failed: %v", err)
+		http.Error(w, "Failed to shorten URL", http.StatusInternalServerError)
+		return
+	}
 
 	resp := ShortenResponse{
-		ShortCode:   shortCode,
-		ShortUrl:    fmt.Sprintf("http://localhost:8080/%s", shortCode),
-		OriginalURL: req.URL,
+		ShortCode:   url.Shcode,
+		ShortUrl:    fmt.Sprintf("http://localhost:8080/%s", url.Shcode),
+		OriginalURL: url.Orglink,
 	}
-	w.Header().Set("Content-type", "application/json")
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(resp)
 }
@@ -81,7 +79,6 @@ func (h *AppHandler) HandleRedirect(w http.ResponseWriter, r *http.Request) {
 	}
 	responseTime := time.Since(start)
 	http.Redirect(w, r, originalURL, http.StatusFound)
-
 
 	//here clickevent for ananlysis start hoga
 	if h.EventsChan != nil {
