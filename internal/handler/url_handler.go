@@ -3,11 +3,14 @@ package handler
 import (
 	"encoding/json"
 	"fmt"
+	"linkit-v2/internal/model"
 	"linkit-v2/internal/service"
+	"log"
 	"net/http"
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 )
 
 var (
@@ -18,11 +21,13 @@ var (
 
 type AppHandler struct {
 	URLService *service.URLService
+	EventsChan chan<- model.ClickEvent
 }
 
-func NewAppHandler(urlService *service.URLService) *AppHandler {
+func NewAppHandler(urlService *service.URLService, eventChan chan<- model.ClickEvent) *AppHandler {
 	return &AppHandler{
 		URLService: urlService,
+		EventsChan: eventChan,
 	}
 }
 
@@ -31,7 +36,7 @@ func (h *AppHandler) HandleShorten(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Method Not allowed Baccha", http.StatusMethodNotAllowed)
 		return
 	}
-
+	defer r.Body.Close()
 	//now read and decode incoming json req
 	var req ShortenRequest
 	err := json.NewDecoder(r.Body).Decode(&req)
@@ -62,18 +67,55 @@ func (h *AppHandler) HandleShorten(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *AppHandler) HandleRedirect(w http.ResponseWriter, r *http.Request) {
+	start := time.Now()
 	shortCode := strings.TrimPrefix(r.URL.Path, "/")
 	if shortCode == "" || shortCode == "shorten" {
+		http.NotFound(w, r)
 		return
 	}
-	storeLock.RLock()
-	originalURL, exists := urlStore[shortCode]
-	storeLock.RUnlock()
-	if !exists {
-		http.Error(w, "URL nahi mila bhai", http.StatusNotFound)
+
+	originalURL, err := h.URLService.GetOriginalURL(r.Context(), shortCode)
+	if err != nil {
+		http.Error(w, "URL not found", http.StatusNotFound)
 		return
 	}
+	responseTime := time.Since(start)
 	http.Redirect(w, r, originalURL, http.StatusFound)
+
+
+	//here clickevent for ananlysis start hoga
+	if h.EventsChan != nil {
+		ua := r.UserAgent()
+		ip := ExtractIP(r)
+		browser, os, device := ParseUserAgent(ua)
+		isBot := DetectBot(ua)
+		visitorHash := GenerateVisitorHash(ip, ua)
+		event := model.ClickEvent{
+			ShortCode:      shortCode,
+			ClickedAt:      time.Now().UTC(),
+			ResponseTimeMs: int(responseTime.Milliseconds()),
+			HTTPStatus:     http.StatusFound,
+			UserAgent:      ua,
+			Referer:        r.Referer(),
+			IPAddress:      AnonymizeIP(ip),
+			VisitorHash:    visitorHash,
+			Country:        "Unknown", // (Can be enriched with GeoIP/Cloudflare headers)
+			City:           "Unknown",
+			DeviceType:     device,
+			Browser:        browser,
+			OS:             os,
+			IsBot:          isBot,
+		}
+		// 4. Non-blocking channel push: If buffer (10,000) is full, don't hang the HTTP request
+		select {
+		case h.EventsChan <- event:
+			//events are queued
+		default:
+			//channel full
+			log.Printf("[Channel Full] Dropped click event for code: %s", shortCode)
+		}
+	}
+
 }
 
 type ShortenRequest struct {
