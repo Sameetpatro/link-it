@@ -9,6 +9,7 @@ import (
 	"linkit-v2/internal/repository"
 	"linkit-v2/internal/service"
 	"linkit-v2/internal/worker"
+	"linkit-v2/internal/cache"
 	"log"
 	"net/http"
 	"os"
@@ -37,9 +38,21 @@ func main() {
 	}
 	fmt.Println("Connected to PostgreSQL successfully!")
 
+	redisURL := os.Getenv("REDIS_URL")
+	if redisURL == "" {
+		redisURL = "localhost:6379"
+	}
+	redisCache, err := cache.NewRedisCache(redisURL)
+	if err != nil {
+		log.Printf("Running in pure PostgreSQL mode (Redis not found: %v)", err)
+		redisCache = nil
+	} else {
+		log.Println("⚡ Connected to Redis Cache successfully!")
+		defer redisCache.Close()
+	}
 	urlRepo := repository.NewURLRepository(db)
 	analyticsRepo := repository.NewAnalyticsRepository(db)
-	urlService := service.NewUrlService(urlRepo)
+	urlService := service.NewUrlService(urlRepo, redisCache)
 
 	eventsChan := make(chan model.ClickEvent, 10000)
 	pool := worker.NewWorkerPool(eventsChan, 5, 100, analyticsRepo)
@@ -62,6 +75,7 @@ func main() {
 			log.Fatalf("Server error: %v", err)
 		}
 	}()
+
 	
 	//graceful shutdown 
 	stopChan := make(chan os.Signal, 1)
