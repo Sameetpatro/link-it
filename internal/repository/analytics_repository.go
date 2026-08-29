@@ -54,3 +54,66 @@ func (a *AnalyticsRepository) BatchInsert(ctx context.Context, events []model.Cl
 	_, err := a.db.ExecContext(ctx, query, valueArgs...)
 	return err
 }
+
+func (a *AnalyticsRepository) AggregateTrafficBuckets(ctx context.Context, intervalMinutes int) (int64, error) {
+	if intervalMinutes <= 0 {
+		intervalMinutes = 5
+	}
+
+	query := fmt.Sprintf(`
+		INSERT INTO traffic_aggregates (
+			short_code,
+			user_id,
+			bucket_start,
+			bucket_end,
+			request_count,
+			unique_visitors,
+			avg_latency_ms,
+			p50_latency_ms,
+			p95_latency_ms,
+			p99_latency_ms,
+			error_count,
+			bot_count,
+			created_at
+		)
+		SELECT 
+			ce.short_code,
+			u.user_id,
+			-- 1. Round timestamp down to 5-minute mark (e.g. 14:03 -> 14:00)
+			to_timestamp(floor(extract(epoch from ce.clicked_at) / (%d * 60)) * (%d * 60)) AS b_start,
+			to_timestamp(floor(extract(epoch from ce.clicked_at) / (%d * 60)) * (%d * 60)) + interval '%d minutes' AS b_end,
+			
+			-- 2. Compute aggregated metrics
+			COUNT(ce.id) AS request_count,
+			COUNT(DISTINCT COALESCE(ce.visitor_hash, ce.ip_address, 'anon')) AS unique_visitors,
+			COALESCE(AVG(ce.response_time_ms), 0.0) AS avg_latency_ms,
+			COALESCE(percentile_cont(0.50) WITHIN GROUP (ORDER BY ce.response_time_ms), 0.0) AS p50_latency_ms,
+			COALESCE(percentile_cont(0.95) WITHIN GROUP (ORDER BY ce.response_time_ms), 0.0) AS p95_latency_ms,
+			COALESCE(percentile_cont(0.99) WITHIN GROUP (ORDER BY ce.response_time_ms), 0.0) AS p99_latency_ms,
+			COUNT(ce.id) FILTER (WHERE ce.http_status >= 400) AS error_count,
+			COUNT(ce.id) FILTER (WHERE ce.is_bot = TRUE) AS bot_count,
+			NOW()
+		FROM click_events ce
+		LEFT JOIN urls u ON ce.short_code = u.short_code
+		WHERE ce.clicked_at >= NOW() - INTERVAL '24 hours'
+		GROUP BY ce.short_code, u.user_id, b_start, b_end
+		-- 3. If bucket already exists, update it with newest values
+		ON CONFLICT (short_code, bucket_start) DO UPDATE SET
+			request_count = EXCLUDED.request_count,
+			unique_visitors = EXCLUDED.unique_visitors,
+			avg_latency_ms = EXCLUDED.avg_latency_ms,
+			p50_latency_ms = EXCLUDED.p50_latency_ms,
+			p95_latency_ms = EXCLUDED.p95_latency_ms,
+			p99_latency_ms = EXCLUDED.p99_latency_ms,
+			error_count = EXCLUDED.error_count,
+			bot_count = EXCLUDED.bot_count,
+			user_id = EXCLUDED.user_id;
+	`, intervalMinutes, intervalMinutes, intervalMinutes, intervalMinutes, intervalMinutes)
+
+	res, err := a.db.ExecContext(ctx, query)
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
+}
+

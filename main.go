@@ -4,12 +4,12 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"linkit-v2/internal/cache"
 	"linkit-v2/internal/handler"
 	"linkit-v2/internal/model"
 	"linkit-v2/internal/repository"
 	"linkit-v2/internal/service"
 	"linkit-v2/internal/worker"
-	"linkit-v2/internal/cache"
 	"log"
 	"net/http"
 	"os"
@@ -59,6 +59,9 @@ func main() {
 	workerCtx, cancelWorkers := context.WithCancel(context.Background())
 	pool.Start(workerCtx)
 
+	aggregator := worker.NewAggregatorWorker(analyticsRepo, 1*time.Minute, 5)
+	aggregator.Start(workerCtx)
+
 	app := handler.NewAppHandler(urlService, eventsChan)
 	http.HandleFunc("POST /shorten", app.HandleShorten)
 	http.HandleFunc("/", app.HandleRedirect)
@@ -76,7 +79,6 @@ func main() {
 		}
 	}()
 
-	
 	//graceful shutdown 
 	stopChan := make(chan os.Signal, 1)
 	signal.Notify(stopChan, os.Interrupt, syscall.SIGTERM)
@@ -89,6 +91,6 @@ func main() {
 
 	cancelWorkers()
 	pool.Wait()
+	aggregator.Stop()
 	log.Println("All workers completed..... Bye babe")
-
 }
