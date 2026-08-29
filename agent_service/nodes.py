@@ -72,11 +72,19 @@ Output JSON format strictly:
             "is_safe": True
         }
     except Exception:
-        # Heuristic fallback if LLM JSON parsing fails
-        codes = [w.strip("?,.'\"") for w in last_message.split() if len(w) in [6, 7] and w.isalnum()]
+        # Heuristic fallback if LLM JSON parsing fails or API key has insufficient balance
+        stopwords = {"predict", "forecast", "compare", "anomaly", "check", "explain", "latency", "traffic", "aggregate", "for", "the", "and", "with", "link", "code", "this", "that", "what", "from", "many", "how", "all", "our", "are"}
+        codes = [w.strip("?,.'\"") for w in last_message.split() if len(w.strip("?,.'\"")) >= 3 and w.strip("?,.'\"").lower() not in stopwords and w.strip("?,.'\"").isalnum()]
         intent = "SQL_QUERY"
-        if "predict" in last_message.lower() or "forecast" in last_message.lower():
+        msg_lower = last_message.lower()
+        if "predict" in msg_lower or "forecast" in msg_lower:
             intent = "FORECAST"
+        elif "anomaly" in msg_lower or "spike" in msg_lower or "drop" in msg_lower:
+            intent = "ANOMALY_CHECK"
+        elif "compare" in msg_lower:
+            intent = "COMPARE_LINKS"
+        elif "what is" in msg_lower or "how does" in msg_lower or "explain" in msg_lower or "p95" in msg_lower or "p50" in msg_lower:
+            intent = "EXPLAIN_CONCEPT"
         return {"intent": intent, "target_short_codes": codes, "is_safe": True}
 
 

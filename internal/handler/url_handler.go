@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"linkit-v2/internal/middleware"
 	"linkit-v2/internal/model"
 	"linkit-v2/internal/service"
 	"log"
@@ -48,13 +49,14 @@ func (h *AppHandler) HandleAnalyticsAPI(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// 2. Fetch ML Forecast (Optional - from Python ML Service)
+	// 2. Fetch ML Forecast (Optional - with 2s timeout so dashboard loads instantly)
 	var mlData any
 	mlURL := os.Getenv("ML_SERVICE_URL")
 	if mlURL == "" {
 		mlURL = "http://localhost:8000"
 	}
-	resp, err := http.Get(fmt.Sprintf("%s/predict/%s?days=%d", mlURL, shortCode, days))
+	client := http.Client{Timeout: 5 * time.Second}
+	resp, err := client.Get(fmt.Sprintf("%s/predict/%s?days=%d", mlURL, shortCode, days))
 	if err == nil && resp.StatusCode == http.StatusOK {
 		json.NewDecoder(resp.Body).Decode(&mlData)
 		resp.Body.Close()
@@ -96,7 +98,8 @@ func (h *AppHandler) HandleShorten(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "URL empty kaise hoga babu", http.StatusBadRequest)
 		return
 	}
-	url, err := h.URLService.Shorten(r.Context(), req.URL, nil)
+	userID := middleware.GetUserID(r.Context())
+	url, err := h.URLService.Shorten(r.Context(), req.URL, userID)
 	if err != nil {
 		log.Printf("ERROR: Shorten failed: %v", err)
 		http.Error(w, "Failed to shorten URL", http.StatusInternalServerError)

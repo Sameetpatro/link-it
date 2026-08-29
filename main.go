@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"linkit-v2/internal/cache"
 	"linkit-v2/internal/handler"
+	"linkit-v2/internal/middleware"
 	"linkit-v2/internal/model"
 	"linkit-v2/internal/repository"
 	"linkit-v2/internal/service"
@@ -73,7 +74,7 @@ func main() {
 	authHandler := handler.NewAuthHandler(authService)
 
 	app := handler.NewAppHandler(urlService, eventsChan)
-	http.HandleFunc("POST /shorten", app.HandleShorten)
+	http.HandleFunc("POST /shorten", middleware.AuthOptional(authService)(app.HandleShorten))
 	http.HandleFunc("POST /register", authHandler.Register)
 	http.HandleFunc("POST /login", authHandler.Login)
 	http.HandleFunc("GET /api/forecast/", app.HandleForecast)
@@ -83,8 +84,8 @@ func main() {
 
 	server := &http.Server{
 		Addr:         ":8080",
-		ReadTimeout:  10 * time.Second,
-		WriteTimeout: 10 * time.Second,
+		ReadTimeout:  30 * time.Second,
+		WriteTimeout: 30 * time.Second,
 	}
 
 	go func() {

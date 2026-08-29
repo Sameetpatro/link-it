@@ -4,8 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LinkIT — Analytics Dashboard</title>
-  <!-- Load Apache ECharts from CDN -->
+  <!-- Load Apache ECharts from CDN with unpkg fallback -->
   <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+  <script>if (typeof echarts === "undefined") { document.write('<script src="https://unpkg.com/echarts@5.5.0/dist/echarts.min.js"><\/script>'); }</script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
     body { background-color: #0b0f19; color: #e2e8f0; padding: 24px; }
@@ -91,48 +92,67 @@
 </div>
 
 <script>
-  // Get short_code from URL path: e.g. /analytics/aB3xK7
-  const shortCode = window.location.pathname.split("/").pop() || "aB3xK7";
+  // Robust short code extraction: handles trailing slashes or subpaths
+  const pathParts = window.location.pathname.split("/").filter(Boolean);
+  const shortCode = pathParts.length > 1 ? pathParts[pathParts.length - 1] : "e588e09";
   document.getElementById("link-code").innerText = "Short Code: " + shortCode;
 
-  // Fetch combined stats & ML forecast from Go backend
+  console.log("Fetching analytics for short code:", shortCode);
+
   fetch(`/api/analytics/${shortCode}?days=30`)
-    .then(res => res.json())
+    .then(res => {
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+      return res.json();
+    })
     .then(data => {
-      const stats = data.stats;
+      console.log("Analytics data received:", data);
+      const stats = data.stats || {};
       const ml = data.ml;
 
-      // Update KPI Cards
-      document.getElementById("kpi-clicks").innerText = stats.total_clicks.toLocaleString();
-      document.getElementById("kpi-visitors").innerText = stats.unique_visitors.toLocaleString();
-      document.getElementById("kpi-latency").innerText = stats.avg_latency_ms.toFixed(1) + " ms";
-      const botPct = stats.total_clicks > 0 ? ((stats.bot_clicks / stats.total_clicks) * 100).toFixed(1) : 0;
+      // Update KPI Cards with safe defaults
+      const totalClicks = stats.total_clicks || 0;
+      const uniqueVisitors = stats.unique_visitors || 0;
+      const avgLatency = stats.avg_latency_ms || 0;
+      const botClicks = stats.bot_clicks || 0;
+
+      document.getElementById("kpi-clicks").innerText = totalClicks.toLocaleString();
+      document.getElementById("kpi-visitors").innerText = uniqueVisitors.toLocaleString();
+      document.getElementById("kpi-latency").innerText = avgLatency.toFixed(1) + " ms";
+      const botPct = totalClicks > 0 ? ((botClicks / totalClicks) * 100).toFixed(1) : "0.0";
       document.getElementById("kpi-bots").innerText = botPct + "%";
 
       // Populate ML Insights if available
       if (ml && ml.why_breakdown) {
         document.getElementById("ml-section").style.display = "block";
-        document.getElementById("ml-summary").innerText = ml.plain_english_summary;
+        document.getElementById("ml-summary").innerText = ml.plain_english_summary || "Forecast ready";
         const reasonsList = document.getElementById("ml-reasons-list");
-        reasonsList.innerHTML = ml.why_breakdown.reasons_list.map(r => `<li>${r}</li>`).join("");
+        if (ml.why_breakdown.reasons_list) {
+          reasonsList.innerHTML = ml.why_breakdown.reasons_list.map(r => `<li>${r}</li>`).join("");
+        }
+      }
+
+      if (typeof echarts === "undefined") {
+        console.warn("ECharts library not loaded");
+        return;
       }
 
       // Render 1: Main Traffic Chart
-      const trafficChart = echarts.init(document.getElementById("traffic-chart"), "dark");
-      const times = stats.time_series.map(p => p.timestamp);
-      const clicks = stats.time_series.map(p => p.clicks);
+      const timeSeries = stats.time_series || [];
+      const times = timeSeries.map(p => p.timestamp);
+      const clicks = timeSeries.map(p => p.clicks);
       
+      const trafficChart = echarts.init(document.getElementById("traffic-chart"), "dark");
       trafficChart.setOption({
         backgroundColor: "transparent",
         tooltip: { trigger: "axis" },
         grid: { left: "3%", right: "3%", bottom: "10%", containLabel: true },
-        xAxis: { type: "category", data: times, axisLine: { lineStyle: { color: "#475569" } } },
+        xAxis: { type: "category", data: times.length ? times : ["No Data"], axisLine: { lineStyle: { color: "#475569" } } },
         yAxis: { type: "value", splitLine: { lineStyle: { color: "#1e293b" } } },
         series: [{
           name: "Clicks",
           type: "line",
           smooth: true,
-          data: clicks,
+          data: clicks.length ? clicks : [0],
           areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: "#38bdf888" }, { offset: 1, color: "#38bdf800" }]) },
           itemStyle: { color: "#38bdf8" }
         }],
@@ -140,20 +160,22 @@
       });
 
       // Render 2: Top Countries Chart (Bar)
+      const countries = stats.countries || {};
       const countryChart = echarts.init(document.getElementById("country-chart"), "dark");
       countryChart.setOption({
         backgroundColor: "transparent",
         tooltip: { trigger: "item" },
         xAxis: { type: "value", splitLine: { lineStyle: { color: "#1e293b" } } },
-        yAxis: { type: "category", data: Object.keys(stats.countries), axisLine: { lineStyle: { color: "#475569" } } },
+        yAxis: { type: "category", data: Object.keys(countries).length ? Object.keys(countries) : ["Direct"], axisLine: { lineStyle: { color: "#475569" } } },
         series: [{
           type: "bar",
-          data: Object.values(stats.countries),
+          data: Object.values(countries).length ? Object.values(countries) : [0],
           itemStyle: { color: "#60a5fa", borderRadius: [0, 6, 6, 0] }
         }]
       });
 
       // Render 3: Device Breakdown (Doughnut)
+      const devices = stats.devices || {};
       const deviceChart = echarts.init(document.getElementById("device-chart"), "dark");
       deviceChart.setOption({
         backgroundColor: "transparent",
@@ -164,16 +186,18 @@
           radius: ["40%", "70%"],
           avoidLabelOverlap: false,
           itemStyle: { borderRadius: 8, borderColor: "#131b2e", borderWidth: 2 },
-          data: Object.entries(stats.devices).map(([k, v]) => ({ name: k, value: v }))
+          data: Object.entries(devices).length ? Object.entries(devices).map(([k, v]) => ({ name: k, value: v })) : [{ name: "Desktop", value: 1 }]
         }]
       });
 
-      // Make responsive on window resize
       window.addEventListener("resize", () => {
         trafficChart.resize();
         countryChart.resize();
         deviceChart.resize();
       });
+    })
+    .catch(err => {
+      console.error("Failed to load analytics:", err);
     });
 </script>
 </body>

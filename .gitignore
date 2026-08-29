@@ -1,0 +1,8 @@
+.env
+
+.venv/
+
+ml/__pycache__/
+agent_service/__pycache__/
+internal/__pycache__/
+frontend/__pycache__/
