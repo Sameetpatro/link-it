@@ -18,14 +18,20 @@ type CacheStats struct {
 }
 
 type URLService struct {
-	repo      *repository.URLRepository
-	cache     *cache.RedisCache
-	cacheHit  atomic.Int64
-	cacheMiss atomic.Int64
+	repo          *repository.URLRepository
+	analyticsRepo *repository.AnalyticsRepository // Added: to fetch analytics for the dashboard
+	cache         *cache.RedisCache
+	cacheHit      atomic.Int64
+	cacheMiss     atomic.Int64
 }
 
-func NewUrlService(repo *repository.URLRepository, cache *cache.RedisCache) *URLService {
-	return &URLService{repo: repo, cache: cache}
+// Updated Constructor to accept analyticsRepo
+func NewUrlService(repo *repository.URLRepository, analyticsRepo *repository.AnalyticsRepository, cache *cache.RedisCache) *URLService {
+	return &URLService{
+		repo:          repo,
+		analyticsRepo: analyticsRepo,
+		cache:         cache,
+	}
 }
 
 func (s *URLService) CacheStats() CacheStats {
@@ -63,9 +69,9 @@ func (s *URLService) Shorten(ctx context.Context, originalURL string, userID *in
 	}
 	return newURL, nil
 }
-func (s *URLService) GetOriginalURL(ctx context.Context, shortCode string) (string, error) {
 
-	cacheKey := "url" + shortCode
+func (s *URLService) GetOriginalURL(ctx context.Context, shortCode string) (string, error) {
+	cacheKey := "url:" + shortCode
 
 	if s.cache != nil {
 		cachedURL, err := s.cache.Get(ctx, cacheKey)
@@ -89,4 +95,9 @@ func (s *URLService) GetOriginalURL(ctx context.Context, shortCode string) (stri
 		}
 	}
 	return url.Orglink, nil
+}
+
+// Added: Fetches detailed analytics from the repository
+func (s *URLService) GetAnalytics(ctx context.Context, shortCode string, days int) (*repository.URLAnalyticsData, error) {
+	return s.analyticsRepo.GetURLDetailedAnalytics(ctx, shortCode, days)
 }

@@ -52,7 +52,7 @@ func main() {
 	}
 	urlRepo := repository.NewURLRepository(db)
 	analyticsRepo := repository.NewAnalyticsRepository(db)
-	urlService := service.NewUrlService(urlRepo, redisCache)
+	urlService := service.NewUrlService(urlRepo, analyticsRepo, redisCache)
 
 	eventsChan := make(chan model.ClickEvent, 10000)
 	pool := worker.NewWorkerPool(eventsChan, 5, 100, analyticsRepo)
@@ -64,6 +64,9 @@ func main() {
 
 	app := handler.NewAppHandler(urlService, eventsChan)
 	http.HandleFunc("POST /shorten", app.HandleShorten)
+	http.HandleFunc("GET /api/forecast/", app.HandleForecast)
+	http.HandleFunc("GET /api/analytics/", app.HandleAnalyticsAPI)
+	http.HandleFunc("GET /analytics/", app.HandleAnalyticsPage)
 	http.HandleFunc("/", app.HandleRedirect)
 
 	server := &http.Server{

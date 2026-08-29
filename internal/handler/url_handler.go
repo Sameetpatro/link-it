@@ -3,10 +3,13 @@ package handler
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"linkit-v2/internal/model"
 	"linkit-v2/internal/service"
 	"log"
 	"net/http"
+	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -21,6 +24,52 @@ var (
 type AppHandler struct {
 	URLService *service.URLService
 	EventsChan chan<- model.ClickEvent
+}
+
+// HandleAnalyticsAPI returns combined DB metrics + ML forecast in JSON
+func (h *AppHandler) HandleAnalyticsAPI(w http.ResponseWriter, r *http.Request) {
+	shortCode := strings.TrimPrefix(r.URL.Path, "/api/analytics/")
+	if shortCode == "" {
+		http.Error(w, "Short code required", http.StatusBadRequest)
+		return
+	}
+
+	days := 30
+	if d := r.URL.Query().Get("days"); d != "" {
+		if val, err := strconv.Atoi(d); err == nil {
+			days = val
+		}
+	}
+
+	// 1. Fetch DB Stats
+	stats, err := h.URLService.GetAnalytics(r.Context(), shortCode, days)
+	if err != nil {
+		http.Error(w, "Failed to fetch analytics", http.StatusInternalServerError)
+		return
+	}
+
+	// 2. Fetch ML Forecast (Optional - from Python ML Service)
+	var mlData any
+	mlURL := os.Getenv("ML_SERVICE_URL")
+	if mlURL == "" {
+		mlURL = "http://localhost:8000"
+	}
+	resp, err := http.Get(fmt.Sprintf("%s/predict/%s?days=%d", mlURL, shortCode, days))
+	if err == nil && resp.StatusCode == http.StatusOK {
+		json.NewDecoder(resp.Body).Decode(&mlData)
+		resp.Body.Close()
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]any{
+		"stats": stats,
+		"ml":    mlData,
+	})
+}
+
+// HandleAnalyticsPage serves the HTML dashboard
+func (h *AppHandler) HandleAnalyticsPage(w http.ResponseWriter, r *http.Request) {
+	http.ServeFile(w, r, "static/analytics.html")
 }
 
 func NewAppHandler(urlService *service.URLService, eventChan chan<- model.ClickEvent) *AppHandler {
@@ -113,6 +162,33 @@ func (h *AppHandler) HandleRedirect(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+}
+
+// HandleForecast proxies the request to the Python ML Service
+func (h *AppHandler) HandleForecast(w http.ResponseWriter, r *http.Request) {
+	shortCode := r.URL.Path[len("/api/forecast/"):]
+	if shortCode == "" {
+		http.Error(w, "Short code required", http.StatusBadRequest)
+		return
+	}
+
+	mlServiceURL := os.Getenv("ML_SERVICE_URL")
+	if mlServiceURL == "" {
+		mlServiceURL = "http://localhost:8000" // Default local Python server
+	}
+
+	// 1. Call Python ML microservice
+	resp, err := http.Get(fmt.Sprintf("%s/predict/%s", mlServiceURL, shortCode))
+	if err != nil {
+		http.Error(w, "ML Service temporarily unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	defer resp.Body.Close()
+
+	// 2. Stream the JSON response back to the user
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(resp.StatusCode)
+	io.Copy(w, resp.Body)
 }
 
 type ShortenRequest struct {
