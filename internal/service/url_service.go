@@ -101,3 +101,7 @@ func (s *URLService) GetOriginalURL(ctx context.Context, shortCode string) (stri
 func (s *URLService) GetAnalytics(ctx context.Context, shortCode string, days int) (*repository.URLAnalyticsData, error) {
 	return s.analyticsRepo.GetURLDetailedAnalytics(ctx, shortCode, days)
 }
+
+func (s *URLService) ListLinks(ctx context.Context, limit int, userID *int64) ([]model.UrlClickCount, error) {
+	return s.repo.ListRecent(ctx, limit, userID)
+}

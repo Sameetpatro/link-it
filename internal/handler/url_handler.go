@@ -69,9 +69,37 @@ func (h *AppHandler) HandleAnalyticsAPI(w http.ResponseWriter, r *http.Request) 
 	})
 }
 
+// HandleListLinks returns the list of short links with click counts
+func (h *AppHandler) HandleListLinks(w http.ResponseWriter, r *http.Request) {
+	limit := 30
+	if l := r.URL.Query().Get("limit"); l != "" {
+		if val, err := strconv.Atoi(l); err == nil && val > 0 {
+			limit = val
+		}
+	}
+
+	userID := middleware.GetUserID(r.Context())
+	links, err := h.URLService.ListLinks(r.Context(), limit, userID)
+	if err != nil {
+		http.Error(w, `{"error": "Failed to fetch links"}`, http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]any{
+		"links":       links,
+		"cache_stats": h.URLService.CacheStats(),
+	})
+}
+
 // HandleAnalyticsPage serves the HTML dashboard
 func (h *AppHandler) HandleAnalyticsPage(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, "static/analytics.html")
+}
+
+// HandleIndexPage serves the main MUI-inspired dashboard
+func (h *AppHandler) HandleIndexPage(w http.ResponseWriter, r *http.Request) {
+	http.ServeFile(w, r, "static/index.html")
 }
 
 func NewAppHandler(urlService *service.URLService, eventChan chan<- model.ClickEvent) *AppHandler {
@@ -119,7 +147,11 @@ func (h *AppHandler) HandleShorten(w http.ResponseWriter, r *http.Request) {
 func (h *AppHandler) HandleRedirect(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
 	shortCode := strings.TrimPrefix(r.URL.Path, "/")
-	if shortCode == "" || shortCode == "shorten" {
+	if shortCode == "" {
+		http.ServeFile(w, r, "static/index.html")
+		return
+	}
+	if shortCode == "shorten" {
 		http.NotFound(w, r)
 		return
 	}

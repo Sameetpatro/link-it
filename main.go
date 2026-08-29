@@ -74,16 +74,30 @@ func main() {
 	authHandler := handler.NewAuthHandler(authService)
 
 	app := handler.NewAppHandler(urlService, eventsChan)
+	http.HandleFunc("GET /api/links", middleware.AuthOptional(authService)(app.HandleListLinks))
 	http.HandleFunc("POST /shorten", middleware.AuthOptional(authService)(app.HandleShorten))
 	http.HandleFunc("POST /register", authHandler.Register)
 	http.HandleFunc("POST /login", authHandler.Login)
 	http.HandleFunc("GET /api/forecast/", app.HandleForecast)
 	http.HandleFunc("GET /api/analytics/", app.HandleAnalyticsAPI)
 	http.HandleFunc("GET /analytics/", app.HandleAnalyticsPage)
+	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
 	http.HandleFunc("/", app.HandleRedirect)
+
+	corsHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		http.DefaultServeMux.ServeHTTP(w, r)
+	})
 
 	server := &http.Server{
 		Addr:         ":8080",
+		Handler:      corsHandler,
 		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 30 * time.Second,
 	}

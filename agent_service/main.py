@@ -13,9 +13,18 @@ from pydantic import BaseModel
 load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
 load_dotenv()
 
+from fastapi.middleware.cors import CORSMiddleware
 from graph import build_analytics_graph
 
 app = FastAPI(title="LinkIT DeepSeek Agentic Analytics", version="2.0.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Compile LangGraph
 analytics_agent = build_analytics_graph()

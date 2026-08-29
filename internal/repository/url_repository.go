@@ -53,3 +53,58 @@ func (r *URLRepository) NextID() (int64, error) {
 	}
 	return id, nil
 }
+
+func (r *URLRepository) ListRecent(ctx context.Context, limit int, userID *int64) ([]model.UrlClickCount, error) {
+	if limit <= 0 || limit > 100 {
+		limit = 50
+	}
+
+	var query string
+	var args []any
+
+	if userID != nil {
+		query = `
+			SELECT u.id, u.short_code, u.original_url, u.user_id, u.created_at,
+			       COALESCE(COUNT(ce.id), 0) AS click_count
+			FROM urls u
+			LEFT JOIN click_events ce ON u.short_code = ce.short_code
+			WHERE u.user_id = $1
+			GROUP BY u.id, u.short_code, u.original_url, u.user_id, u.created_at
+			ORDER BY u.created_at DESC
+			LIMIT $2;
+		`
+		args = append(args, *userID, limit)
+	} else {
+		query = `
+			SELECT u.id, u.short_code, u.original_url, u.user_id, u.created_at,
+			       COALESCE(COUNT(ce.id), 0) AS click_count
+			FROM urls u
+			LEFT JOIN click_events ce ON u.short_code = ce.short_code
+			GROUP BY u.id, u.short_code, u.original_url, u.user_id, u.created_at
+			ORDER BY click_count DESC, u.created_at DESC
+			LIMIT $1;
+		`
+		args = append(args, limit)
+	}
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var results []model.UrlClickCount
+	for rows.Next() {
+		var item model.UrlClickCount
+		var uid sql.NullInt64
+		if err := rows.Scan(&item.Id, &item.Shcode, &item.OriginalURL, &uid, &item.CreatedAt, &item.ClickCount); err != nil {
+			return nil, err
+		}
+		if uid.Valid {
+			uVal := int(uid.Int64)
+			item.UserId = &uVal
+		}
+		results = append(results, item)
+	}
+	return results, nil
+}

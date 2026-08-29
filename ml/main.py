@@ -6,6 +6,7 @@ FastAPI Server providing the on-demand explainable prediction endpoint.
 import os
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from predictor import predict_traffic_with_explanation
 
 # Load .env from project root
@@ -13,6 +14,14 @@ load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
 load_dotenv()
 
 app = FastAPI(title="LinkIT ML Traffic Predictor", version="2.0.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.get("/health")
