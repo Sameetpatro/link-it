@@ -5,21 +5,16 @@ import {
   Box,
   Container,
   Grid,
-  Fab,
-  Tooltip,
 } from '@mui/material';
-import { Bot } from 'lucide-react';
 import { getTheme } from './theme/theme';
 import AppNavbar from './components/AppNavbar';
 import HeroShortener from './components/HeroShortener';
-import CategoryChips from './components/CategoryChips';
 import FeaturedSpotlight from './components/FeaturedSpotlight';
 import LinkCardGrid from './components/LinkCardGrid';
 import EngineVitals from './components/EngineVitals';
 import AnalyticsDialog from './components/AnalyticsDialog';
 import AICopilotDrawer from './components/AICopilotDrawer';
 import AuthDialog from './components/AuthDialog';
-import Footer from './components/Footer';
 import { linksAPI } from './api';
 
 export default function App() {
@@ -29,7 +24,6 @@ export default function App() {
   const [allLinks, setAllLinks] = useState([]);
   const [filteredLinks, setFilteredLinks] = useState([]);
   const [cacheStats, setCacheStats] = useState(null);
-  const [activeCategory, setActiveCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [currentUser, setCurrentUser] = useState(null);
 
@@ -58,36 +52,17 @@ export default function App() {
       const links = res.data.links || [];
       setAllLinks(links);
       setCacheStats(res.data.cache_stats);
-      applyFilter(links, activeCategory, searchQuery);
+      applyFilter(links, searchQuery);
     } catch (err) {
       console.error('Failed to load links:', err);
     }
   };
 
-  const applyFilter = (links, cat, query) => {
+  const applyFilter = (links, query) => {
     let result = [...links];
 
-    // Category filter
-    if (cat === 'stripe') {
-      result = result.filter((l) => (l.original_url || '').toLowerCase().includes('stripe'));
-    } else if (cat === 'github') {
-      result = result.filter((l) => (l.original_url || '').toLowerCase().includes('github'));
-    } else if (cat === 'news') {
-      result = result.filter(
-        (l) =>
-          (l.original_url || '').toLowerCase().includes('cnn') ||
-          (l.original_url || '').toLowerCase().includes('ycombinator') ||
-          (l.original_url || '').toLowerCase().includes('wired') ||
-          (l.original_url || '').toLowerCase().includes('news')
-      );
-    } else if (cat === 'mine') {
-      if (currentUser) {
-        result = result.filter((l) => l.user_id === currentUser.id);
-      }
-    }
-
     // Search query filter
-    if (query.trim()) {
+    if (query && query.trim()) {
       const q = query.toLowerCase().trim();
       result = result.filter(
         (l) =>
@@ -99,18 +74,9 @@ export default function App() {
     setFilteredLinks(result);
   };
 
-  const handleCategoryChange = (cat) => {
-    setActiveCategory(cat);
-    if (cat === 'mine' && !currentUser) {
-      setIsAuthOpen(true);
-      return;
-    }
-    applyFilter(allLinks, cat, searchQuery);
-  };
-
   const handleSearch = (query) => {
     setSearchQuery(query);
-    applyFilter(allLinks, activeCategory, query);
+    applyFilter(allLinks, query);
   };
 
   const handleLinkCreated = () => {
@@ -177,12 +143,6 @@ export default function App() {
             onOpenAnalytics={handleOpenAnalytics}
           />
 
-          {/* Category Chips */}
-          <CategoryChips
-            activeCategory={activeCategory}
-            onSelectCategory={handleCategoryChange}
-          />
-
           {/* Main Grid: Articles/Cards (Left) + Sidebar (Right) */}
           <Grid container spacing={4}>
             <Grid item xs={12} md={8}>
@@ -212,31 +172,6 @@ export default function App() {
             </Grid>
           </Grid>
         </Container>
-
-        {/* Footer */}
-        <Footer />
-
-        {/* Floating Action Button for AI Copilot */}
-        <Tooltip title="Ask LinkIT AI Copilot">
-          <Fab
-            color="primary"
-            onClick={() => handleOpenAIDrawer()}
-            sx={{
-              position: 'fixed',
-              bottom: 28,
-              right: 28,
-              boxShadow: '0 8px 30px rgba(16, 185, 129, 0.4)',
-              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-              color: '#042f2e',
-              fontWeight: 800,
-              '&:hover': {
-                background: 'linear-gradient(135deg, #34d399 0%, #10b981 100%)',
-              },
-            }}
-          >
-            <Bot size={24} />
-          </Fab>
-        </Tooltip>
 
         {/* Modals & Drawers */}
         <AnalyticsDialog

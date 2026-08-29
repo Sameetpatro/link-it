@@ -89,22 +89,9 @@ export default function AppNavbar({
                 letterSpacing: '-0.5px',
                 display: 'flex',
                 alignItems: 'center',
-                gap: 1,
               }}
             >
               LinkIT
-              <Chip
-                label="v2.0 PRO"
-                size="small"
-                sx={{
-                  height: 20,
-                  fontSize: '0.65rem',
-                  fontWeight: 700,
-                  backgroundColor: 'rgba(16, 185, 129, 0.15)',
-                  color: '#10b981',
-                  border: '1px solid rgba(16, 185, 129, 0.3)',
-                }}
-              />
             </Typography>
           </Box>
 
