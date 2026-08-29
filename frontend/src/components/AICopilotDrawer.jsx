@@ -14,11 +14,12 @@ import { agentAPI } from '../api';
 
 export default function AICopilotDrawer({ open, onClose, initialQuery, currentUser }) {
   const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
   const [messages, setMessages] = useState([
     {
       role: 'assistant',
       content:
-        "Hello! I'm your LinkIT AI Agent powered by LangGraph. Ask me to forecast traffic, compare short links, analyze spikes, or explain P95 latency.",
+        "Hello! I'm your LinkIT AI Agent powered by LangGraph. Ask me to forecast traffic, compare short links, analyze spikes, or explain latency metrics.",
     },
   ]);
   const [input, setInput] = useState('');
@@ -31,7 +32,7 @@ export default function AICopilotDrawer({ open, onClose, initialQuery, currentUs
   }, [initialQuery]);
 
   const handleSend = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     const query = input.trim();
     if (!query || loading) return;
 
@@ -66,10 +67,12 @@ export default function AICopilotDrawer({ open, onClose, initialQuery, currentUs
       onClose={onClose}
       PaperProps={{
         sx: {
-          width: { xs: '100%', sm: 420 },
+          width: { xs: '100%', sm: 440 },
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'space-between',
+          backgroundColor: isDark ? '#0f1713' : '#ffffff',
+          borderLeft: `1px solid ${isDark ? 'rgba(16, 185, 129, 0.2)' : 'rgba(5, 150, 105, 0.2)'}`,
         },
       }}
     >
@@ -83,27 +86,33 @@ export default function AICopilotDrawer({ open, onClose, initialQuery, currentUs
           justifyContent: 'space-between',
         }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
           <Box
             sx={{
-              width: 32,
-              height: 32,
+              width: 36,
+              height: 36,
               borderRadius: 2,
-              background: 'linear-gradient(135deg, #38bdf8 0%, #818cf8 100%)',
+              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: '#090e17',
+              color: '#042f2e',
+              boxShadow: '0 0 12px rgba(16, 185, 129, 0.3)',
             }}
           >
-            <Bot size={18} />
+            <Bot size={20} />
           </Box>
-          <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>
-            LinkIT Copilot (LangGraph)
-          </Typography>
+          <Box>
+            <Typography variant="subtitle1" sx={{ fontWeight: 800, color: theme.palette.text.primary, lineHeight: 1.2 }}>
+              LinkIT Copilot
+            </Typography>
+            <Typography variant="caption" sx={{ color: '#10b981', fontWeight: 600 }}>
+              DeepSeek • LangGraph
+            </Typography>
+          </Box>
         </Box>
-        <IconButton onClick={onClose} size="small">
-          <X size={18} />
+        <IconButton onClick={onClose} size="small" sx={{ color: theme.palette.text.secondary }}>
+          <X size={20} />
         </IconButton>
       </Box>
 
@@ -130,16 +139,17 @@ export default function AICopilotDrawer({ open, onClose, initialQuery, currentUs
               borderBottomLeftRadius: m.role === 'assistant' ? 0 : 3,
               backgroundColor:
                 m.role === 'user'
-                  ? '#38bdf8'
-                  : theme.palette.mode === 'dark'
-                  ? '#1e293b'
-                  : '#f1f5f9',
-              color: m.role === 'user' ? '#090e17' : theme.palette.text.primary,
-              fontWeight: m.role === 'user' ? 600 : 400,
+                  ? '#10b981'
+                  : isDark
+                  ? '#15221b'
+                  : '#f0fdf4',
+              color: m.role === 'user' ? '#042f2e' : theme.palette.text.primary,
+              fontWeight: m.role === 'user' ? 700 : 400,
               fontSize: '0.875rem',
               lineHeight: 1.5,
-              border: `1px solid ${m.role === 'user' ? 'transparent' : theme.palette.divider}`,
+              border: `1px solid ${m.role === 'user' ? 'transparent' : isDark ? 'rgba(16, 185, 129, 0.15)' : 'rgba(5, 150, 105, 0.15)'}`,
               wordBreak: 'break-word',
+              boxShadow: m.role === 'user' ? '0 2px 10px rgba(16, 185, 129, 0.25)' : 'none',
             }}
           >
             {m.content}
@@ -152,16 +162,17 @@ export default function AICopilotDrawer({ open, onClose, initialQuery, currentUs
               alignSelf: 'flex-start',
               p: 1.5,
               borderRadius: 3,
-              backgroundColor: theme.palette.mode === 'dark' ? '#1e293b' : '#f1f5f9',
+              backgroundColor: isDark ? '#15221b' : '#f0fdf4',
               display: 'flex',
               alignItems: 'center',
               gap: 1,
               fontSize: '0.85rem',
-              color: theme.palette.text.secondary,
+              color: '#10b981',
+              border: `1px solid ${isDark ? 'rgba(16, 185, 129, 0.2)' : 'rgba(5, 150, 105, 0.2)'}`,
             }}
           >
             <CircularProgress size={14} color="inherit" />
-            DeepSeek Agent analyzing...
+            AI agent analyzing link telemetry...
           </Box>
         )}
       </Box>
@@ -175,7 +186,7 @@ export default function AICopilotDrawer({ open, onClose, initialQuery, currentUs
           borderTop: `1px solid ${theme.palette.divider}`,
           display: 'flex',
           gap: 1,
-          backgroundColor: theme.palette.background.paper,
+          backgroundColor: isDark ? '#0f1713' : '#ffffff',
         }}
       >
         <Box
@@ -183,14 +194,17 @@ export default function AICopilotDrawer({ open, onClose, initialQuery, currentUs
             flex: 1,
             display: 'flex',
             alignItems: 'center',
-            backgroundColor: theme.palette.mode === 'dark' ? '#1e293b' : '#f1f5f9',
+            backgroundColor: isDark ? '#15221b' : '#f0fdf4',
             borderRadius: 2.5,
             px: 1.5,
-            border: `1px solid ${theme.palette.divider}`,
+            border: `1px solid ${isDark ? 'rgba(16, 185, 129, 0.2)' : 'rgba(5, 150, 105, 0.2)'}`,
+            '&:focus-within': {
+              borderColor: '#10b981',
+            },
           }}
         >
           <InputBase
-            placeholder="Ask agent (e.g. 'forecast b0f9736')..."
+            placeholder="Ask agent (e.g. 'forecast traffic')..."
             fullWidth
             value={input}
             onChange={(e) => setInput(e.target.value)}
@@ -211,3 +225,4 @@ export default function AICopilotDrawer({ open, onClose, initialQuery, currentUs
     </Drawer>
   );
 }
+

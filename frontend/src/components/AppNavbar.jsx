@@ -29,6 +29,7 @@ export default function AppNavbar({
   mode,
   toggleMode,
   currentUser,
+  userLinks = [],
   onOpenAuth,
   onLogout,
   onOpenAIDrawer,
@@ -36,6 +37,7 @@ export default function AppNavbar({
   onOpenAnalytics,
 }) {
   const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
   const [anchorEl, setAnchorEl] = React.useState(null);
 
   const handleMenuOpen = (event) => {
@@ -45,16 +47,17 @@ export default function AppNavbar({
     setAnchorEl(null);
   };
 
+  const topShortCode = userLinks.length > 0 ? userLinks[0].shcode : '';
+
   return (
     <AppBar
       position="sticky"
       sx={{
-        backgroundColor:
-          theme.palette.mode === 'dark'
-            ? 'rgba(15, 23, 42, 0.85)'
-            : 'rgba(255, 255, 255, 0.85)',
+        backgroundColor: isDark
+          ? 'rgba(15, 23, 19, 0.88)'
+          : 'rgba(255, 255, 255, 0.88)',
         backdropFilter: 'blur(12px)',
-        borderBottom: `1px solid ${theme.palette.divider}`,
+        borderBottom: `1px solid ${isDark ? 'rgba(16, 185, 129, 0.15)' : 'rgba(5, 150, 105, 0.15)'}`,
         boxShadow: 'none',
       }}
     >
@@ -68,11 +71,12 @@ export default function AppNavbar({
                 width: 36,
                 height: 36,
                 borderRadius: 2,
-                background: 'linear-gradient(135deg, #38bdf8 0%, #818cf8 100%)',
+                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: '#090e17',
+                color: '#042f2e',
+                boxShadow: '0 0 12px rgba(16, 185, 129, 0.3)',
               }}
             >
               <Zap size={20} />
@@ -96,36 +100,48 @@ export default function AppNavbar({
                   height: 20,
                   fontSize: '0.65rem',
                   fontWeight: 700,
-                  backgroundColor: 'rgba(56, 189, 248, 0.12)',
-                  color: '#38bdf8',
-                  border: '1px solid rgba(56, 189, 248, 0.3)',
+                  backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                  color: '#10b981',
+                  border: '1px solid rgba(16, 185, 129, 0.3)',
                 }}
               />
             </Typography>
           </Box>
 
-          {/* Center Navigation Links (MUI Blog Style) */}
+          {/* Center Navigation Links */}
           <Box sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'center', gap: 1 }}>
             <Button
               color="inherit"
-              sx={{ color: theme.palette.text.secondary, '&:hover': { color: '#38bdf8' } }}
+              sx={{
+                color: theme.palette.text.secondary,
+                fontWeight: 600,
+                '&:hover': { color: '#10b981' },
+              }}
               onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
             >
               Shortener
             </Button>
             <Button
               color="inherit"
-              sx={{ color: theme.palette.text.secondary, '&:hover': { color: '#38bdf8' } }}
-              onClick={() => onOpenAnalytics('b0f9736')}
-              startIcon={<BarChart3 size={16} />}
+              sx={{
+                color: theme.palette.text.secondary,
+                fontWeight: 600,
+                '&:hover': { color: '#10b981' },
+              }}
+              onClick={() => onOpenAnalytics(topShortCode || '')}
+              startIcon={<BarChart3 size={16} color="#10b981" />}
             >
               Analytics
             </Button>
             <Button
               color="inherit"
-              sx={{ color: theme.palette.text.secondary, '&:hover': { color: '#818cf8' } }}
-              onClick={() => onOpenAIDrawer('predict traffic for b0f9736')}
-              startIcon={<Bot size={16} />}
+              sx={{
+                color: theme.palette.text.secondary,
+                fontWeight: 600,
+                '&:hover': { color: '#10b981' },
+              }}
+              onClick={() => onOpenAIDrawer(topShortCode ? `predict traffic for ${topShortCode}` : 'forecast my traffic')}
+              startIcon={<Bot size={16} color="#34d399" />}
             >
               ML Predictions
             </Button>
@@ -139,14 +155,16 @@ export default function AppNavbar({
               sx={{
                 display: 'flex',
                 alignItems: 'center',
-                backgroundColor:
-                  theme.palette.mode === 'dark' ? '#1e293b' : '#f1f5f9',
+                backgroundColor: isDark ? '#15221b' : '#f0fdf4',
                 borderRadius: 9999,
                 padding: '4px 12px',
-                border: `1px solid ${theme.palette.divider}`,
+                border: `1px solid ${isDark ? 'rgba(16, 185, 129, 0.2)' : 'rgba(5, 150, 105, 0.2)'}`,
+                '&:focus-within': {
+                  borderColor: '#10b981',
+                },
               }}
             >
-              <Search size={16} color={theme.palette.text.secondary} />
+              <Search size={16} color={isDark ? '#34d399' : '#059669'} />
               <InputBase
                 placeholder="Search links..."
                 size="small"
@@ -161,7 +179,7 @@ export default function AppNavbar({
             </Box>
 
             {/* Dark/Light Toggle */}
-            <IconButton onClick={toggleMode} color="inherit" size="small">
+            <IconButton onClick={toggleMode} color="inherit" size="small" sx={{ color: theme.palette.text.secondary }}>
               {mode === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
             </IconButton>
 
@@ -172,13 +190,14 @@ export default function AppNavbar({
                   onClick={handleMenuOpen}
                   sx={{
                     borderRadius: 9999,
-                    backgroundColor: 'rgba(56, 189, 248, 0.12)',
-                    color: '#38bdf8',
-                    border: '1px solid rgba(56, 189, 248, 0.3)',
+                    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                    color: '#10b981',
+                    border: '1px solid rgba(16, 185, 129, 0.3)',
                     padding: '4px 12px',
+                    fontWeight: 700,
                   }}
                   startIcon={
-                    <Avatar sx={{ width: 22, height: 22, bgcolor: '#38bdf8', color: '#090e17', fontSize: '0.75rem' }}>
+                    <Avatar sx={{ width: 22, height: 22, bgcolor: '#10b981', color: '#042f2e', fontSize: '0.75rem', fontWeight: 800 }}>
                       {currentUser.username.charAt(0).toUpperCase()}
                     </Avatar>
                   }
@@ -191,14 +210,23 @@ export default function AppNavbar({
                   onClose={handleMenuClose}
                   anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
                   transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+                  PaperProps={{
+                    sx: {
+                      mt: 1,
+                      backgroundColor: isDark ? '#0f1713' : '#ffffff',
+                      border: `1px solid ${isDark ? 'rgba(16, 185, 129, 0.2)' : 'rgba(5, 150, 105, 0.2)'}`,
+                    },
+                  }}
                 >
-                  <MenuItem disabled>Logged in as @{currentUser.username}</MenuItem>
+                  <MenuItem disabled sx={{ color: theme.palette.text.secondary }}>
+                    Signed in as @{currentUser.username}
+                  </MenuItem>
                   <MenuItem
                     onClick={() => {
                       handleMenuClose();
                       onLogout();
                     }}
-                    sx={{ color: '#f87171' }}
+                    sx={{ color: '#f87171', fontWeight: 600 }}
                   >
                     <LogOut size={16} style={{ marginRight: 8 }} /> Sign Out
                   </MenuItem>
@@ -211,6 +239,7 @@ export default function AppNavbar({
                 size="small"
                 onClick={onOpenAuth}
                 startIcon={<User size={16} />}
+                sx={{ fontWeight: 700 }}
               >
                 Sign In
               </Button>
@@ -222,3 +251,4 @@ export default function AppNavbar({
     </AppBar>
   );
 }
+

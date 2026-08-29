@@ -6,6 +6,7 @@ import (
 	"io"
 	"linkit-v2/internal/middleware"
 	"linkit-v2/internal/model"
+	"linkit-v2/internal/repository"
 	"linkit-v2/internal/service"
 	"log"
 	"net/http"
@@ -42,24 +43,40 @@ func (h *AppHandler) HandleAnalyticsAPI(w http.ResponseWriter, r *http.Request) 
 		}
 	}
 
-	// 1. Fetch DB Stats
-	stats, err := h.URLService.GetAnalytics(r.Context(), shortCode, days)
-	if err != nil {
+	var (
+		stats    *repository.URLAnalyticsData
+		statsErr error
+		mlData   any
+		wg       sync.WaitGroup
+	)
+
+	// 1. Fetch DB Stats in parallel
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		stats, statsErr = h.URLService.GetAnalytics(r.Context(), shortCode, days)
+	}()
+
+	// 2. Fetch ML Forecast concurrently with a fast 2.5s timeout
+	go func() {
+		defer wg.Done()
+		mlURL := os.Getenv("ML_SERVICE_URL")
+		if mlURL == "" {
+			mlURL = "http://localhost:8000"
+		}
+		client := http.Client{Timeout: 2500 * time.Millisecond}
+		resp, err := client.Get(fmt.Sprintf("%s/predict/%s?days=%d", mlURL, shortCode, days))
+		if err == nil && resp.StatusCode == http.StatusOK {
+			_ = json.NewDecoder(resp.Body).Decode(&mlData)
+			resp.Body.Close()
+		}
+	}()
+
+	wg.Wait()
+
+	if statsErr != nil {
 		http.Error(w, "Failed to fetch analytics", http.StatusInternalServerError)
 		return
-	}
-
-	// 2. Fetch ML Forecast (Optional - with 2s timeout so dashboard loads instantly)
-	var mlData any
-	mlURL := os.Getenv("ML_SERVICE_URL")
-	if mlURL == "" {
-		mlURL = "http://localhost:8000"
-	}
-	client := http.Client{Timeout: 5 * time.Second}
-	resp, err := client.Get(fmt.Sprintf("%s/predict/%s?days=%d", mlURL, shortCode, days))
-	if err == nil && resp.StatusCode == http.StatusOK {
-		json.NewDecoder(resp.Body).Decode(&mlData)
-		resp.Body.Close()
 	}
 
 	w.Header().Set("Content-Type", "application/json")

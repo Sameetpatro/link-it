@@ -2,7 +2,6 @@ import React from 'react';
 import {
   Grid,
   Card,
-  CardContent,
   Typography,
   Box,
   IconButton,
@@ -11,15 +10,16 @@ import {
   Tooltip,
   useTheme,
 } from '@mui/material';
-import { Copy, BarChart3, Bot, MousePointerClick, Calendar, ExternalLink } from 'lucide-react';
+import { Copy, BarChart3, Bot, MousePointerClick, Calendar, ExternalLink, Sparkles } from 'lucide-react';
 
 export default function LinkCardGrid({ links, onOpenAnalytics, onOpenAIDrawer }) {
   const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
 
   const handleCopy = (code) => {
     const url = `http://localhost:8080/${code}`;
     navigator.clipboard.writeText(url);
-    alert(`Copied: ${url}`);
+    alert(`Copied short link: ${url}`);
   };
 
   const getDomain = (url) => {
@@ -38,8 +38,23 @@ export default function LinkCardGrid({ links, onOpenAnalytics, onOpenAIDrawer })
 
   if (!links || links.length === 0) {
     return (
-      <Box sx={{ textAlign: 'center', py: 8, color: theme.palette.text.secondary }}>
-        <Typography variant="body1">No links found in this category.</Typography>
+      <Box
+        sx={{
+          textAlign: 'center',
+          py: 8,
+          px: 3,
+          backgroundColor: isDark ? 'rgba(15, 23, 19, 0.5)' : '#ffffff',
+          borderRadius: 3,
+          border: `1px dashed ${theme.palette.divider}`,
+        }}
+      >
+        <Sparkles size={32} color="#10b981" style={{ marginBottom: 12 }} />
+        <Typography variant="h6" sx={{ fontWeight: 700, color: theme.palette.text.primary, mb: 0.5 }}>
+          No shortened links found
+        </Typography>
+        <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+          Enter a URL above to create and manage your personal shortened links.
+        </Typography>
       </Box>
     );
   }
@@ -57,6 +72,14 @@ export default function LinkCardGrid({ links, onOpenAnalytics, onOpenAIDrawer })
                 flexDirection: 'column',
                 justifyContent: 'space-between',
                 p: 2.5,
+                backgroundColor: isDark ? '#0f1713' : '#ffffff',
+                border: `1px solid ${isDark ? 'rgba(16, 185, 129, 0.15)' : 'rgba(5, 150, 105, 0.15)'}`,
+                '&:hover': {
+                  borderColor: isDark ? '#10b981' : '#059669',
+                  boxShadow: isDark
+                    ? '0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 0 12px rgba(16, 185, 129, 0.15)'
+                    : '0 10px 25px -5px rgba(0, 0, 0, 0.08)',
+                },
               }}
             >
               <Box>
@@ -66,17 +89,18 @@ export default function LinkCardGrid({ links, onOpenAnalytics, onOpenAIDrawer })
                     label={domain}
                     size="small"
                     sx={{
-                      backgroundColor: 'rgba(56, 189, 248, 0.1)',
-                      color: '#38bdf8',
-                      fontWeight: 600,
+                      backgroundColor: isDark ? 'rgba(16, 185, 129, 0.12)' : 'rgba(5, 150, 105, 0.1)',
+                      color: isDark ? '#34d399' : '#047857',
+                      fontWeight: 700,
                       fontSize: '0.75rem',
+                      border: `1px solid ${isDark ? 'rgba(16, 185, 129, 0.25)' : 'rgba(5, 150, 105, 0.2)'}`,
                     }}
                   />
                   <Tooltip title="Copy Short URL">
                     <IconButton
                       size="small"
                       onClick={() => handleCopy(link.shcode)}
-                      sx={{ color: theme.palette.text.secondary }}
+                      sx={{ color: theme.palette.text.secondary, '&:hover': { color: '#10b981' } }}
                     >
                       <Copy size={16} />
                     </IconButton>
@@ -104,7 +128,7 @@ export default function LinkCardGrid({ links, onOpenAnalytics, onOpenAIDrawer })
                       display: 'inline-flex',
                       alignItems: 'center',
                       gap: 0.5,
-                      '&:hover': { color: '#38bdf8' },
+                      '&:hover': { color: '#10b981' },
                     }}
                   >
                     /{link.shcode}
@@ -135,7 +159,7 @@ export default function LinkCardGrid({ links, onOpenAnalytics, onOpenAIDrawer })
                   sx={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 2,
+                    justifyContent: 'space-between',
                     py: 1,
                     borderTop: `1px solid ${theme.palette.divider}`,
                     borderBottom: `1px solid ${theme.palette.divider}`,
@@ -145,7 +169,7 @@ export default function LinkCardGrid({ links, onOpenAnalytics, onOpenAIDrawer })
                   }}
                 >
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                    <MousePointerClick size={14} color="#38bdf8" />
+                    <MousePointerClick size={14} color="#10b981" />
                     <strong style={{ color: theme.palette.text.primary }}>
                       {link.click_count || 0}
                     </strong>{' '}
@@ -168,6 +192,8 @@ export default function LinkCardGrid({ links, onOpenAnalytics, onOpenAIDrawer })
                       borderColor: theme.palette.divider,
                       color: theme.palette.text.primary,
                       fontSize: '0.8rem',
+                      fontWeight: 600,
+                      '&:hover': { borderColor: '#10b981', color: '#10b981', bgcolor: 'rgba(16, 185, 129, 0.05)' },
                     }}
                   >
                     Analytics
@@ -178,9 +204,10 @@ export default function LinkCardGrid({ links, onOpenAnalytics, onOpenAIDrawer })
                     onClick={() => onOpenAIDrawer(`predict traffic for ${link.shcode}`)}
                     sx={{
                       borderColor: theme.palette.divider,
-                      color: '#818cf8',
+                      color: '#10b981',
                       minWidth: 40,
                       px: 1,
+                      '&:hover': { borderColor: '#10b981', bgcolor: 'rgba(16, 185, 129, 0.1)' },
                     }}
                     title="Ask AI Forecaster"
                   >
@@ -195,3 +222,4 @@ export default function LinkCardGrid({ links, onOpenAnalytics, onOpenAIDrawer })
     </Grid>
   );
 }
+

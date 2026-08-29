@@ -12,11 +12,14 @@ import {
   Tab,
   Alert,
   CircularProgress,
+  useTheme,
 } from '@mui/material';
 import { X, Lock } from 'lucide-react';
 import { authAPI } from '../api';
 
 export default function AuthDialog({ open, onClose, onAuthSuccess }) {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
   const [tab, setTab] = useState(0); // 0 = login, 1 = register
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -59,12 +62,25 @@ export default function AuthDialog({ open, onClose, onAuthSuccess }) {
   };
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth PaperProps={{ sx: { p: 2, borderRadius: 4 } }}>
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="xs"
+      fullWidth
+      PaperProps={{
+        sx: {
+          p: 2,
+          borderRadius: 4,
+          backgroundColor: isDark ? '#0f1713' : '#ffffff',
+          border: `1px solid ${isDark ? 'rgba(16, 185, 129, 0.25)' : 'rgba(5, 150, 105, 0.2)'}`,
+        },
+      }}
+    >
       <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pb: 1 }}>
-        <Typography variant="h6" sx={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Lock size={18} color="#38bdf8" /> {tab === 0 ? 'Sign In to LinkIT' : 'Create Account'}
+        <Typography variant="h6" sx={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: 1, color: theme.palette.text.primary }}>
+          <Lock size={18} color="#10b981" /> {tab === 0 ? 'Sign In to LinkIT' : 'Create Account'}
         </Typography>
-        <IconButton onClick={onClose} size="small">
+        <IconButton onClick={onClose} size="small" sx={{ color: theme.palette.text.secondary }}>
           <X size={18} />
         </IconButton>
       </DialogTitle>
@@ -78,7 +94,11 @@ export default function AuthDialog({ open, onClose, onAuthSuccess }) {
             setSuccessMsg('');
           }}
           variant="fullWidth"
-          sx={{ mb: 2.5 }}
+          sx={{
+            mb: 2.5,
+            '& .MuiTabs-indicator': { backgroundColor: '#10b981' },
+            '& .MuiTab-root.Mui-selected': { color: '#10b981', fontWeight: 700 },
+          }}
         >
           <Tab label="Sign In" />
           <Tab label="Register" />
@@ -90,7 +110,7 @@ export default function AuthDialog({ open, onClose, onAuthSuccess }) {
           </Alert>
         )}
         {successMsg && (
-          <Alert severity="success" sx={{ mb: 2, borderRadius: 2 }}>
+          <Alert severity="success" sx={{ mb: 2, borderRadius: 2, bgcolor: '#059669', color: '#ffffff' }}>
             {successMsg}
           </Alert>
         )}
@@ -105,6 +125,9 @@ export default function AuthDialog({ open, onClose, onAuthSuccess }) {
             placeholder="e.g. smita"
             required
             fullWidth
+            sx={{
+              '& .MuiOutlinedInput-root.Mui-focused fieldset': { borderColor: '#10b981' },
+            }}
           />
           <TextField
             label="Password"
@@ -116,6 +139,9 @@ export default function AuthDialog({ open, onClose, onAuthSuccess }) {
             placeholder="••••••••"
             required
             fullWidth
+            sx={{
+              '& .MuiOutlinedInput-root.Mui-focused fieldset': { borderColor: '#10b981' },
+            }}
           />
           <Button
             type="submit"
@@ -132,3 +158,4 @@ export default function AuthDialog({ open, onClose, onAuthSuccess }) {
     </Dialog>
   );
 }
+

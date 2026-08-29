@@ -3,6 +3,7 @@ import { Box, Container, Typography, useTheme } from '@mui/material';
 
 export default function Footer() {
   const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
 
   return (
     <Box
@@ -10,7 +11,7 @@ export default function Footer() {
       sx={{
         mt: 'auto',
         py: 4,
-        borderTop: `1px solid ${theme.palette.divider}`,
+        borderTop: `1px solid ${isDark ? 'rgba(16, 185, 129, 0.12)' : 'rgba(5, 150, 105, 0.12)'}`,
         backgroundColor: theme.palette.background.paper,
       }}
     >
@@ -27,13 +28,14 @@ export default function Footer() {
           }}
         >
           <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
-            <strong>LinkIT v2.0 PRO</strong> — Enterprise Distributed URL Shortening & Telemetry
+            <strong style={{ color: '#10b981' }}>LinkIT v2.0 PRO</strong> — Enterprise Distributed URL Shortening & Telemetry
           </Typography>
           <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
-            Go Gateway • PostgreSQL • Upstash Redis • Scikit-Learn • LangGraph
+            Go Gateway • PostgreSQL • Redis • Scikit-Learn • LangGraph
           </Typography>
         </Box>
       </Container>
     </Box>
   );
 }
+

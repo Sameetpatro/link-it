@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   ThemeProvider,
   CssBaseline,
@@ -24,7 +24,7 @@ import { linksAPI } from './api';
 
 export default function App() {
   const [mode, setMode] = useState('dark');
-  const theme = React.useMemo(() => getTheme(mode), [mode]);
+  const theme = useMemo(() => getTheme(mode), [mode]);
 
   const [allLinks, setAllLinks] = useState([]);
   const [filteredLinks, setFilteredLinks] = useState([]);
@@ -46,7 +46,7 @@ export default function App() {
       try {
         setCurrentUser(JSON.parse(savedUser));
       } catch (e) {
-        console.error(e);
+        console.error('Failed to parse saved user:', e);
       }
     }
     loadLinks();
@@ -55,9 +55,10 @@ export default function App() {
   const loadLinks = async () => {
     try {
       const res = await linksAPI.list(50);
-      setAllLinks(res.data.links || []);
+      const links = res.data.links || [];
+      setAllLinks(links);
       setCacheStats(res.data.cache_stats);
-      applyFilter(res.data.links || [], activeCategory, searchQuery);
+      applyFilter(links, activeCategory, searchQuery);
     } catch (err) {
       console.error('Failed to load links:', err);
     }
@@ -68,15 +69,16 @@ export default function App() {
 
     // Category filter
     if (cat === 'stripe') {
-      result = result.filter((l) => l.original_url.includes('stripe'));
+      result = result.filter((l) => (l.original_url || '').toLowerCase().includes('stripe'));
     } else if (cat === 'github') {
-      result = result.filter((l) => l.original_url.includes('github'));
+      result = result.filter((l) => (l.original_url || '').toLowerCase().includes('github'));
     } else if (cat === 'news') {
       result = result.filter(
         (l) =>
-          l.original_url.includes('cnn') ||
-          l.original_url.includes('ycombinator') ||
-          l.original_url.includes('wired')
+          (l.original_url || '').toLowerCase().includes('cnn') ||
+          (l.original_url || '').toLowerCase().includes('ycombinator') ||
+          (l.original_url || '').toLowerCase().includes('wired') ||
+          (l.original_url || '').toLowerCase().includes('news')
       );
     } else if (cat === 'mine') {
       if (currentUser) {
@@ -89,8 +91,8 @@ export default function App() {
       const q = query.toLowerCase().trim();
       result = result.filter(
         (l) =>
-          l.shcode.toLowerCase().includes(q) ||
-          l.original_url.toLowerCase().includes(q)
+          (l.shcode && l.shcode.toLowerCase().includes(q)) ||
+          (l.original_url && l.original_url.toLowerCase().includes(q))
       );
     }
 
@@ -116,7 +118,11 @@ export default function App() {
   };
 
   const handleOpenAnalytics = (code) => {
-    setAnalyticsCode(code);
+    if (code) {
+      setAnalyticsCode(code);
+    } else if (allLinks.length > 0) {
+      setAnalyticsCode(allLinks[0].shcode);
+    }
   };
 
   const handleOpenAIDrawer = (query = '') => {
@@ -130,6 +136,14 @@ export default function App() {
     setCurrentUser(null);
     loadLinks();
   };
+
+  // Derive top-performing link dynamically
+  const topLink = useMemo(() => {
+    if (!allLinks || allLinks.length === 0) return null;
+    // Sort by click count descending
+    const sorted = [...allLinks].sort((a, b) => (b.click_count || 0) - (a.click_count || 0));
+    return sorted[0];
+  }, [allLinks]);
 
   return (
     <ThemeProvider theme={theme}>
@@ -147,6 +161,7 @@ export default function App() {
           mode={mode}
           toggleMode={() => setMode((prev) => (prev === 'dark' ? 'light' : 'dark'))}
           currentUser={currentUser}
+          userLinks={allLinks}
           onOpenAuth={() => setIsAuthOpen(true)}
           onLogout={handleLogout}
           onOpenAIDrawer={handleOpenAIDrawer}
@@ -171,8 +186,10 @@ export default function App() {
           {/* Main Grid: Articles/Cards (Left) + Sidebar (Right) */}
           <Grid container spacing={4}>
             <Grid item xs={12} md={8}>
-              {/* Featured Top Performer Spotlight */}
+              {/* Dynamic Top Performing Spotlight (Shows user's own top link if logged in) */}
               <FeaturedSpotlight
+                topLink={topLink}
+                isLoggedIn={Boolean(currentUser)}
                 onOpenAnalytics={handleOpenAnalytics}
                 onOpenAIDrawer={handleOpenAIDrawer}
               />
@@ -185,10 +202,11 @@ export default function App() {
               />
             </Grid>
 
-            {/* Sidebar Widgets (MUI Blog Sidebar) */}
+            {/* Sidebar Widgets */}
             <Grid item xs={12} md={4}>
               <EngineVitals
                 cacheStats={cacheStats}
+                userLinks={allLinks}
                 onOpenAIDrawer={handleOpenAIDrawer}
               />
             </Grid>
@@ -207,10 +225,13 @@ export default function App() {
               position: 'fixed',
               bottom: 28,
               right: 28,
-              boxShadow: '0 8px 30px rgba(56, 189, 248, 0.4)',
-              background: 'linear-gradient(135deg, #38bdf8 0%, #818cf8 100%)',
-              color: '#090e17',
+              boxShadow: '0 8px 30px rgba(16, 185, 129, 0.4)',
+              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+              color: '#042f2e',
               fontWeight: 800,
+              '&:hover': {
+                background: 'linear-gradient(135deg, #34d399 0%, #10b981 100%)',
+              },
             }}
           >
             <Bot size={24} />
@@ -243,3 +264,4 @@ export default function App() {
     </ThemeProvider>
   );
 }
+

@@ -9,27 +9,27 @@
   <script>if (typeof echarts === "undefined") { document.write('<script src="https://unpkg.com/echarts@5.5.0/dist/echarts.min.js"><\/script>'); }</script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    body { background-color: #0b0f19; color: #e2e8f0; padding: 24px; }
+    body { background-color: #090d0b; color: #f0fdf4; padding: 24px; }
     .container { max-width: 1200px; margin: 0 auto; }
     header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
-    h1 { font-size: 24px; color: #38bdf8; }
-    .badge { background: #1e293b; padding: 6px 12px; border-radius: 20px; font-size: 14px; color: #94a3b8; }
+    h1 { font-size: 24px; color: #10b981; }
+    .badge { background: #15221b; padding: 6px 14px; border-radius: 20px; font-size: 14px; color: #34d399; border: 1px solid rgba(16, 185, 129, 0.25); font-family: monospace; font-weight: bold; }
     
     /* KPI Cards Grid */
     .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px; }
-    .card { background: #131b2e; border: 1px solid #1e293b; border-radius: 12px; padding: 20px; }
-    .card-title { font-size: 13px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; }
-    .card-value { font-size: 28px; font-weight: bold; margin-top: 8px; color: #f8fafc; }
+    .card { background: #0f1713; border: 1px solid rgba(16, 185, 129, 0.18); border-radius: 12px; padding: 20px; }
+    .card-title { font-size: 12px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
+    .card-value { font-size: 28px; font-weight: bold; margin-top: 8px; color: #f0fdf4; }
     
     /* Charts Grid */
-    .chart-container { background: #131b2e; border: 1px solid #1e293b; border-radius: 12px; padding: 20px; margin-bottom: 24px; }
-    .chart-header { font-size: 16px; font-weight: 600; margin-bottom: 16px; color: #cbd5e1; }
+    .chart-container { background: #0f1713; border: 1px solid rgba(16, 185, 129, 0.18); border-radius: 12px; padding: 20px; margin-bottom: 24px; }
+    .chart-header { font-size: 16px; font-weight: 700; margin-bottom: 16px; color: #f0fdf4; display: flex; align-items: center; gap: 8px; }
     .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
     @media (max-width: 768px) { .grid-2 { grid-template-columns: 1fr; } }
     
     /* ML Insights Banner */
-    .ml-box { background: linear-gradient(135deg, #1e1b4b, #172554); border: 1px solid #3b82f6; border-radius: 12px; padding: 20px; margin-bottom: 24px; }
-    .ml-title { font-size: 16px; font-weight: bold; color: #60a5fa; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+    .ml-box { background: linear-gradient(135deg, rgba(6, 78, 59, 0.4), rgba(15, 23, 19, 0.9)); border: 1px solid rgba(52, 211, 153, 0.4); border-radius: 12px; padding: 20px; margin-bottom: 24px; }
+    .ml-title { font-size: 16px; font-weight: bold; color: #34d399; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
     .ml-reasons { list-style: none; margin-top: 12px; }
     .ml-reasons li { padding: 4px 0; font-size: 14px; color: #cbd5e1; }
   </style>
@@ -40,7 +40,7 @@
   <header>
     <div>
       <h1>⚡ LinkIT Analytics</h1>
-      <p style="color: #64748b; font-size: 14px; margin-top: 4px;">Real-Time Traffic & ML Forecasting</p>
+      <p style="color: #94a3b8; font-size: 14px; margin-top: 4px;">Real-Time Telemetry & ML Forecasting</p>
     </div>
     <div class="badge" id="link-code">Loading...</div>
   </header>
@@ -53,7 +53,7 @@
     </div>
     <div class="card">
       <div class="card-title">Unique Visitors</div>
-      <div class="card-value" id="kpi-visitors">0</div>
+      <div class="card-value" id="kpi-visitors" style="color: #10b981;">0</div>
     </div>
     <div class="card">
       <div class="card-title">Average Latency</div>
@@ -65,10 +65,10 @@
     </div>
   </div>
 
-  <!-- 2. ML Insights Banner (Step 6) -->
+  <!-- 2. ML Insights Banner -->
   <div class="ml-box" id="ml-section" style="display: none;">
     <div class="ml-title">🧠 ML Traffic Forecast & Insights (Gradient Boosting)</div>
-    <p id="ml-summary" style="font-size: 15px; color: #e2e8f0;"></p>
+    <p id="ml-summary" style="font-size: 15px; color: #f0fdf4; font-weight: 500;"></p>
     <ul class="ml-reasons" id="ml-reasons-list"></ul>
   </div>
 
@@ -92,12 +92,9 @@
 </div>
 
 <script>
-  // Robust short code extraction: handles trailing slashes or subpaths
   const pathParts = window.location.pathname.split("/").filter(Boolean);
-  const shortCode = pathParts.length > 1 ? pathParts[pathParts.length - 1] : "e588e09";
-  document.getElementById("link-code").innerText = "Short Code: " + shortCode;
-
-  console.log("Fetching analytics for short code:", shortCode);
+  const shortCode = pathParts.length > 1 ? pathParts[pathParts.length - 1] : "latest";
+  document.getElementById("link-code").innerText = "Short Code: /" + shortCode;
 
   fetch(`/api/analytics/${shortCode}?days=30`)
     .then(res => {
@@ -105,11 +102,9 @@
       return res.json();
     })
     .then(data => {
-      console.log("Analytics data received:", data);
       const stats = data.stats || {};
       const ml = data.ml;
 
-      // Update KPI Cards with safe defaults
       const totalClicks = stats.total_clicks || 0;
       const uniqueVisitors = stats.unique_visitors || 0;
       const avgLatency = stats.avg_latency_ms || 0;
@@ -121,12 +116,11 @@
       const botPct = totalClicks > 0 ? ((botClicks / totalClicks) * 100).toFixed(1) : "0.0";
       document.getElementById("kpi-bots").innerText = botPct + "%";
 
-      // Populate ML Insights if available
-      if (ml && ml.why_breakdown) {
+      if (ml) {
         document.getElementById("ml-section").style.display = "block";
-        document.getElementById("ml-summary").innerText = ml.plain_english_summary || "Forecast ready";
+        document.getElementById("ml-summary").innerText = ml.plain_english_summary || "Forecast model active.";
         const reasonsList = document.getElementById("ml-reasons-list");
-        if (ml.why_breakdown.reasons_list) {
+        if (ml.why_breakdown && ml.why_breakdown.reasons_list) {
           reasonsList.innerHTML = ml.why_breakdown.reasons_list.map(r => `<li>${r}</li>`).join("");
         }
       }
@@ -141,51 +135,98 @@
       const times = timeSeries.map(p => p.timestamp);
       const clicks = timeSeries.map(p => p.clicks);
       
-      const trafficChart = echarts.init(document.getElementById("traffic-chart"), "dark");
+      const trafficChart = echarts.init(document.getElementById("traffic-chart"));
       trafficChart.setOption({
         backgroundColor: "transparent",
-        tooltip: { trigger: "axis" },
-        grid: { left: "3%", right: "3%", bottom: "10%", containLabel: true },
-        xAxis: { type: "category", data: times.length ? times : ["No Data"], axisLine: { lineStyle: { color: "#475569" } } },
-        yAxis: { type: "value", splitLine: { lineStyle: { color: "#1e293b" } } },
+        tooltip: {
+          trigger: "axis",
+          backgroundColor: "rgba(15, 23, 19, 0.95)",
+          borderColor: "#10b981",
+          borderWidth: 1.5,
+          textStyle: { color: "#f0fdf4" }
+        },
+        grid: { left: "3%", right: "3%", bottom: "12%", containLabel: true },
+        xAxis: {
+          type: "category",
+          data: times.length ? times : ["No Events"],
+          axisLine: { lineStyle: { color: "rgba(16, 185, 129, 0.25)" } },
+          axisLabel: { color: "#cbd5e1", fontSize: 11 }
+        },
+        yAxis: {
+          type: "value",
+          splitLine: { lineStyle: { color: "rgba(255, 255, 255, 0.08)" } },
+          axisLabel: { color: "#cbd5e1", fontSize: 11 }
+        },
         series: [{
           name: "Clicks",
           type: "line",
           smooth: true,
           data: clicks.length ? clicks : [0],
-          areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: "#38bdf888" }, { offset: 1, color: "#38bdf800" }]) },
-          itemStyle: { color: "#38bdf8" }
+          lineStyle: { color: "#10b981", width: 3 },
+          areaStyle: {
+            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+              { offset: 0, color: "rgba(16, 185, 129, 0.45)" },
+              { offset: 1, color: "rgba(16, 185, 129, 0)" }
+            ])
+          },
+          itemStyle: { color: "#34d399" }
         }],
-        dataZoom: [{ type: "inside" }, { type: "slider", bottom: 0, textStyle: { color: "#94a3b8" } }]
+        dataZoom: [{ type: "inside" }, { type: "slider", bottom: 0, textStyle: { color: "#cbd5e1" }, fillerColor: "rgba(16, 185, 129, 0.25)" }]
       });
 
       // Render 2: Top Countries Chart (Bar)
       const countries = stats.countries || {};
-      const countryChart = echarts.init(document.getElementById("country-chart"), "dark");
+      const countryChart = echarts.init(document.getElementById("country-chart"));
       countryChart.setOption({
         backgroundColor: "transparent",
-        tooltip: { trigger: "item" },
-        xAxis: { type: "value", splitLine: { lineStyle: { color: "#1e293b" } } },
-        yAxis: { type: "category", data: Object.keys(countries).length ? Object.keys(countries) : ["Direct"], axisLine: { lineStyle: { color: "#475569" } } },
+        tooltip: {
+          trigger: "item",
+          backgroundColor: "rgba(15, 23, 19, 0.95)",
+          borderColor: "#10b981",
+          textStyle: { color: "#f0fdf4" }
+        },
+        xAxis: {
+          type: "value",
+          splitLine: { lineStyle: { color: "rgba(255, 255, 255, 0.08)" } },
+          axisLabel: { color: "#cbd5e1" }
+        },
+        yAxis: {
+          type: "category",
+          data: Object.keys(countries).length ? Object.keys(countries) : ["Direct / Unknown"],
+          axisLine: { lineStyle: { color: "rgba(16, 185, 129, 0.2)" } },
+          axisLabel: { color: "#f0fdf4", fontWeight: "bold" }
+        },
         series: [{
           type: "bar",
           data: Object.values(countries).length ? Object.values(countries) : [0],
-          itemStyle: { color: "#60a5fa", borderRadius: [0, 6, 6, 0] }
+          itemStyle: {
+            color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
+              { offset: 0, color: "#059669" },
+              { offset: 1, color: "#34d399" }
+            ]),
+            borderRadius: [0, 6, 6, 0]
+          }
         }]
       });
 
       // Render 3: Device Breakdown (Doughnut)
       const devices = stats.devices || {};
-      const deviceChart = echarts.init(document.getElementById("device-chart"), "dark");
+      const deviceChart = echarts.init(document.getElementById("device-chart"));
       deviceChart.setOption({
         backgroundColor: "transparent",
-        tooltip: { trigger: "item" },
-        legend: { bottom: "0%", textStyle: { color: "#94a3b8" } },
+        tooltip: {
+          trigger: "item",
+          backgroundColor: "rgba(15, 23, 19, 0.95)",
+          borderColor: "#10b981",
+          textStyle: { color: "#f0fdf4" }
+        },
+        legend: { bottom: "0%", textStyle: { color: "#cbd5e1" } },
+        color: ["#10b981", "#14b8a6", "#06b6d4", "#3b82f6"],
         series: [{
           type: "pie",
           radius: ["40%", "70%"],
           avoidLabelOverlap: false,
-          itemStyle: { borderRadius: 8, borderColor: "#131b2e", borderWidth: 2 },
+          itemStyle: { borderRadius: 8, borderColor: "#0f1713", borderWidth: 2 },
           data: Object.entries(devices).length ? Object.entries(devices).map(([k, v]) => ({ name: k, value: v })) : [{ name: "Desktop", value: 1 }]
         }]
       });
@@ -202,3 +243,4 @@
 </script>
 </body>
 </html>
+

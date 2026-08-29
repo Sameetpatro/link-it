@@ -16,6 +16,7 @@ import { linksAPI } from '../api';
 
 export default function HeroShortener({ onLinkCreated, onOpenAnalytics }) {
   const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
   const [url, setUrl] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -54,17 +55,15 @@ export default function HeroShortener({ onLinkCreated, onOpenAnalytics }) {
         sx={{
           p: { xs: 3, md: 5 },
           borderRadius: 4,
-          background:
-            theme.palette.mode === 'dark'
-              ? 'linear-gradient(135deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.9) 100%)'
-              : 'linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%)',
-          border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(56, 189, 248, 0.2)' : 'rgba(2, 132, 199, 0.2)'}`,
+          background: isDark
+            ? 'linear-gradient(135deg, rgba(15, 23, 19, 0.95) 0%, rgba(21, 34, 27, 0.8) 100%)'
+            : 'linear-gradient(135deg, #ffffff 0%, #ecfdf5 100%)',
+          border: `1px solid ${isDark ? 'rgba(16, 185, 129, 0.25)' : 'rgba(5, 150, 105, 0.2)'}`,
           position: 'relative',
           overflow: 'hidden',
-          boxShadow:
-            theme.palette.mode === 'dark'
-              ? '0 0 35px rgba(56, 189, 248, 0.1)'
-              : '0 10px 25px rgba(2, 132, 199, 0.08)',
+          boxShadow: isDark
+            ? '0 0 35px rgba(16, 185, 129, 0.12)'
+            : '0 10px 25px rgba(5, 150, 105, 0.08)',
         }}
       >
         <Typography
@@ -80,7 +79,7 @@ export default function HeroShortener({ onLinkCreated, onOpenAnalytics }) {
           <Box
             component="span"
             sx={{
-              background: 'linear-gradient(135deg, #38bdf8 0%, #818cf8 100%)',
+              background: 'linear-gradient(135deg, #10b981 0%, #34d399 50%, #6ee7b7 100%)',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
             }}
@@ -98,7 +97,7 @@ export default function HeroShortener({ onLinkCreated, onOpenAnalytics }) {
             fontSize: '1rem',
           }}
         >
-          High-throughput event ingestion backed by Upstash Redis caching, 5-minute rollup aggregations, and Quantile Gradient Boosting traffic prediction.
+          High-throughput event ingestion backed by Redis caching, 5-minute rollup aggregations, and Gradient Boosting traffic prediction.
         </Typography>
 
         {/* Shortener Form */}
@@ -108,20 +107,20 @@ export default function HeroShortener({ onLinkCreated, onOpenAnalytics }) {
           sx={{
             display: 'flex',
             alignItems: 'center',
-            backgroundColor: theme.palette.background.paper,
+            backgroundColor: isDark ? '#0f1713' : '#ffffff',
             borderRadius: 3,
             p: 0.75,
-            border: `1px solid ${theme.palette.divider}`,
+            border: `1px solid ${isDark ? 'rgba(16, 185, 129, 0.2)' : 'rgba(5, 150, 105, 0.2)'}`,
             boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
             '&:focus-within': {
-              borderColor: '#38bdf8',
-              boxShadow: '0 0 0 3px rgba(56, 189, 248, 0.25)',
+              borderColor: '#10b981',
+              boxShadow: '0 0 0 3px rgba(16, 185, 129, 0.25)',
             },
           }}
         >
           <Link2
             size={20}
-            style={{ marginLeft: 12, marginRight: 8, color: theme.palette.text.secondary }}
+            style={{ marginLeft: 12, marginRight: 8, color: '#10b981' }}
           />
           <InputBase
             value={url}
@@ -166,11 +165,10 @@ export default function HeroShortener({ onLinkCreated, onOpenAnalytics }) {
                 mt: 2.5,
                 p: 2,
                 borderRadius: 2.5,
-                backgroundColor:
-                  theme.palette.mode === 'dark'
-                    ? 'rgba(56, 189, 248, 0.08)'
-                    : 'rgba(2, 132, 199, 0.06)',
-                border: '1px solid rgba(56, 189, 248, 0.3)',
+                backgroundColor: isDark
+                  ? 'rgba(16, 185, 129, 0.08)'
+                  : 'rgba(5, 150, 105, 0.06)',
+                border: `1px solid ${isDark ? 'rgba(16, 185, 129, 0.3)' : 'rgba(5, 150, 105, 0.25)'}`,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
@@ -183,7 +181,7 @@ export default function HeroShortener({ onLinkCreated, onOpenAnalytics }) {
                   label="Ready"
                   size="small"
                   color="success"
-                  sx={{ height: 22, fontWeight: 700, fontSize: '0.7rem' }}
+                  sx={{ height: 22, fontWeight: 700, fontSize: '0.7rem', bgcolor: '#059669' }}
                 />
                 <Typography
                   component="a"
@@ -193,10 +191,10 @@ export default function HeroShortener({ onLinkCreated, onOpenAnalytics }) {
                   sx={{
                     fontFamily: 'JetBrains Mono, monospace',
                     fontWeight: 700,
-                    color: '#38bdf8',
+                    color: '#10b981',
                     textDecoration: 'none',
                     fontSize: '1rem',
-                    '&:hover': { textDecoration: 'underline' },
+                    '&:hover': { textDecoration: 'underline', color: '#34d399' },
                   }}
                 >
                   {result.short_url}
@@ -210,8 +208,9 @@ export default function HeroShortener({ onLinkCreated, onOpenAnalytics }) {
                   onClick={handleCopy}
                   startIcon={copied ? <Check size={16} /> : <Copy size={16} />}
                   sx={{
-                    borderColor: 'rgba(56, 189, 248, 0.4)',
-                    color: copied ? '#34d399' : theme.palette.text.primary,
+                    borderColor: 'rgba(16, 185, 129, 0.4)',
+                    color: copied ? '#10b981' : theme.palette.text.primary,
+                    '&:hover': { borderColor: '#10b981', color: '#10b981' },
                   }}
                 >
                   {copied ? 'Copied!' : 'Copy Link'}
@@ -222,8 +221,6 @@ export default function HeroShortener({ onLinkCreated, onOpenAnalytics }) {
                   onClick={() => onOpenAnalytics(result.short_code)}
                   startIcon={<BarChart2 size={16} />}
                   sx={{
-                    background: 'linear-gradient(135deg, #38bdf8 0%, #818cf8 100%)',
-                    color: '#090e17',
                     fontWeight: 700,
                   }}
                 >
@@ -237,3 +234,4 @@ export default function HeroShortener({ onLinkCreated, onOpenAnalytics }) {
     </Box>
   );
 }
+
