@@ -16,7 +16,7 @@ def fetch_link_data(short_code: str, days: int = 30) -> pd.DataFrame:
     """
     Step 1: Fetch whatever historical data exists for this specific link.
     """
-    db_url = os.getenv("DATABASE_URL")
+    db_url = os.getenv("DATABASE_URL") or os.getenv("DB")
     if not db_url:
         raise ValueError("DATABASE_URL environment variable is missing!")
 

@@ -16,9 +16,15 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/joho/godotenv"
+	_ "github.com/lib/pq"
 )
 
 func main() {
+	// Load .env file (ignore error if not found)
+	_ = godotenv.Load()
+
 	dbURL := os.Getenv("DATABASE_URL")
 	if dbURL == "" {
 		dbURL = "postgres://postgres:postgres@localhost:5432/linkit?sslmode=disable"
@@ -32,8 +38,7 @@ func main() {
 	db.SetMaxOpenConns(25)                 //this limits the max concurrent TCP connections to 25 to avoid bottleneck of DB... instead of creating 1000 of different connection for each queries, all requests should submerge to 25 pools (25 channels)
 	db.SetMaxIdleConns(5)                  //this is the min no of connections to keep alive even no requests are alive
 	db.SetConnMaxLifetime(5 * time.Minute) //dont let a connection live for 5 min long
-	errr := db.Ping()
-	if errr != nil {
+	if err := db.Ping(); err != nil {
 		log.Fatalf("Failed to connect to PostgreSQL: %v", err)
 	}
 	fmt.Println("Connected to PostgreSQL successfully!")
@@ -62,8 +67,15 @@ func main() {
 	aggregator := worker.NewAggregatorWorker(analyticsRepo, 1*time.Minute, 5)
 	aggregator.Start(workerCtx)
 
+	// Auth setup
+	userRepo := repository.NewUserRepository(db)
+	authService := service.NewAuthService(userRepo, os.Getenv("JWT_SECRET"))
+	authHandler := handler.NewAuthHandler(authService)
+
 	app := handler.NewAppHandler(urlService, eventsChan)
 	http.HandleFunc("POST /shorten", app.HandleShorten)
+	http.HandleFunc("POST /register", authHandler.Register)
+	http.HandleFunc("POST /login", authHandler.Login)
 	http.HandleFunc("GET /api/forecast/", app.HandleForecast)
 	http.HandleFunc("GET /api/analytics/", app.HandleAnalyticsAPI)
 	http.HandleFunc("GET /analytics/", app.HandleAnalyticsPage)

@@ -17,7 +17,7 @@ func NewURLRepository(db *sql.DB) *URLRepository {
 	return &URLRepository{db: db}
 }
 func (r *URLRepository) Create(ctx context.Context, url *model.URL) error {
-	query := `INSERT INTO urls(id, shcode, orglink, user_id, createAt)
+	query := `INSERT INTO urls(id, short_code, original_url, user_id, created_at)
 	VALUES($1, $2, $3, $4, $5)`
 	_, err := r.db.ExecContext(ctx, query, url.Id, url.Shcode, url.Orglink, url.UserId, url.CreateAt)
 	return err

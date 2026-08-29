@@ -10,6 +10,8 @@ require (
 
 require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
+	github.com/joho/godotenv v1.5.1 // indirect
+	github.com/lib/pq v1.12.3 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
 )
