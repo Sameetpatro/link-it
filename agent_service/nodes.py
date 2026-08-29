@@ -1,76 +1,119 @@
 """
 nodes.py
-State transformation nodes for the LangGraph agent pipeline.
+State transformation nodes powered by DeepSeek-V3 LLM.
 """
 
+import json
+import os
 import re
+from typing import Any, Dict
+from dotenv import load_dotenv
+from langchain_core.messages import SystemMessage, HumanMessage
+from langchain_openai import ChatOpenAI
+
 from state import ConversationState
-from tools import execute_scoped_sql, get_traffic_forecast, get_detected_anomalies, search_knowledge_base
+from tools import (
+    execute_scoped_sql,
+    get_detected_anomalies,
+    get_traffic_forecast,
+    search_knowledge_base,
+)
+
+# Load environment variables (.env)
+load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
+load_dotenv()
+
+# Initialize DeepSeek Chat Model
+deepseek_api_key = os.getenv("DEEPSEEK_API") or os.getenv("DEEPSEEK_API_KEY")
+
+llm = ChatOpenAI(
+    model="deepseek-chat",
+    api_key=deepseek_api_key,
+    base_url="https://api.deepseek.com",
+    temperature=0.2,
+)
 
 
 def intent_classifier_node(state: ConversationState) -> Dict[str, Any]:
     """
-    Node 1: Analyzes user input and identifies the primary intent and target short codes.
+    Node 1: DeepSeek classifies the user's intent and extracts any short codes.
     """
-    last_message = state["messages"][-1]["content"].lower()
-    
-    # Extract short code patterns (e.g. alphanumeric strings)
-    words = state["messages"][-1]["content"].split()
-    codes = [w.strip("?,.'\"") for w in words if len(w) in [6, 7] and w.isalnum()]
-    
-    intent = "SQL_QUERY"
-    if "predict" in last_message or "forecast" in last_message or "tomorrow" in last_message:
-        intent = "FORECAST"
-    elif "spike" in last_message or "drop" in last_message or "anomaly" in last_message or "unusual" in last_message:
-        intent = "ANOMALY_CHECK"
-    elif "compare" in last_message or "versus" in last_message or "vs" in last_message:
-        intent = "COMPARE_LINKS"
-    elif "what is" in last_message or "explain" in last_message or "how does" in last_message:
-        intent = "EXPLAIN_CONCEPT"
-    elif last_message in ["hi", "hello", "help", "who are you"]:
-        intent = "GENERAL_CHAT"
+    last_message = state["messages"][-1]["content"]
 
-    return {
-        "intent": intent,
-        "target_short_codes": codes,
-        "is_safe": True
-    }
+    system_prompt = """
+You are the LinkIT Intent Router. Analyze the user's message and output JSON only.
+Choose one intent from:
+- "SQL_QUERY": Asking about historical clicks, countries, devices, referrers, or link stats.
+- "FORECAST": Asking to predict or forecast future traffic.
+- "ANOMALY_CHECK": Asking about traffic spikes, drops, bot attacks, or unusual behavior.
+- "COMPARE_LINKS": Asking to compare performance between two or more links.
+- "EXPLAIN_CONCEPT": Asking conceptual questions (e.g. what is P95, how does caching work).
+- "GENERAL_CHAT": Greetings or general conversation.
+
+Output JSON format strictly:
+{
+    "intent": "<ONE_OF_THE_ABOVE>",
+    "target_short_codes": ["code1", "code2"]
+}
+"""
+    try:
+        response = llm.invoke([
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=last_message)
+        ])
+        
+        # Clean any markdown code blocks
+        clean_json = response.content.replace("```json", "").replace("```", "").strip()
+        parsed = json.loads(clean_json)
+        
+        return {
+            "intent": parsed.get("intent", "SQL_QUERY"),
+            "target_short_codes": parsed.get("target_short_codes", []),
+            "is_safe": True
+        }
+    except Exception:
+        # Heuristic fallback if LLM JSON parsing fails
+        codes = [w.strip("?,.'\"") for w in last_message.split() if len(w) in [6, 7] and w.isalnum()]
+        intent = "SQL_QUERY"
+        if "predict" in last_message.lower() or "forecast" in last_message.lower():
+            intent = "FORECAST"
+        return {"intent": intent, "target_short_codes": codes, "is_safe": True}
 
 
 def sql_analyst_node(state: ConversationState) -> Dict[str, Any]:
     """
-    Node 2: Generates and runs a tenant-scoped SQL query based on the user's question.
+    Node 2: DeepSeek generates tenant-scoped PostgreSQL queries.
     """
     user_id = state["user_id"]
+    last_message = state["messages"][-1]["content"]
     codes = state.get("target_short_codes", [])
     code = codes[0] if codes else ""
-    last_msg = state["messages"][-1]["content"].lower()
 
-    if "country" in last_msg or "where" in last_msg:
-        query = f"""
-            SELECT country, COUNT(id) AS clicks
-            FROM click_events
-            WHERE short_code = '{code}'
-              AND short_code IN (SELECT short_code FROM urls WHERE user_id = {user_id})
-            GROUP BY country ORDER BY clicks DESC LIMIT 5;
-        """
-    elif "device" in last_msg or "browser" in last_msg:
-        query = f"""
-            SELECT device_type, browser, COUNT(id) AS clicks
-            FROM click_events
-            WHERE short_code = '{code}'
-              AND short_code IN (SELECT short_code FROM urls WHERE user_id = {user_id})
-            GROUP BY device_type, browser ORDER BY clicks DESC LIMIT 5;
-        """
-    else:
-        query = f"""
-            SELECT COUNT(id) AS total_clicks, COUNT(DISTINCT visitor_hash) AS unique_visitors, AVG(response_time_ms) AS avg_latency
-            FROM click_events
-            WHERE short_code = '{code}'
-              AND short_code IN (SELECT short_code FROM urls WHERE user_id = {user_id});
-        """
+    system_prompt = f"""
+You are an expert PostgreSQL DBA for LinkIT.
+Database Schema:
+- click_events (id, short_code, clicked_at, response_time_ms, http_status, is_bot, device_type, browser, os, country, city, referer, visitor_hash)
+- urls (id, short_code, original_url, user_id, created_at)
+- traffic_aggregates (id, short_code, user_id, bucket_start, request_count, avg_latency_ms, p50_latency_ms, p95_latency_ms, p99_latency_ms, error_count, bot_count)
 
-    return {"sql_query": query}
+SECURITY RULES:
+1. ONLY generate SELECT queries. Never generate INSERT, UPDATE, DELETE, or DROP.
+2. ALWAYS filter urls by user_id = {user_id} or short_code IN (SELECT short_code FROM urls WHERE user_id = {user_id}).
+3. Target short_code is: '{code}' (if specified).
+
+Output ONLY the raw SQL query, without markdown blocks.
+"""
+    try:
+        response = llm.invoke([
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=last_message)
+        ])
+        query = response.content.replace("```sql", "").replace("```", "").strip()
+        return {"sql_query": query}
+    except Exception as e:
+        # Fallback default query
+        query = f"SELECT COUNT(*) AS total_clicks FROM click_events WHERE short_code = '{code}' AND short_code IN (SELECT short_code FROM urls WHERE user_id = {user_id});"
+        return {"sql_query": query}
 
 
 def forecaster_node(state: ConversationState) -> Dict[str, Any]:
@@ -141,7 +184,6 @@ def security_guard_node(state: ConversationState) -> Dict[str, Any]:
                 "security_reason": f"Security violation: Query contains forbidden command '{keyword}'."
             }
 
-    # Execute SQL if safe
     try:
         results = execute_scoped_sql(query, state["user_id"])
         return {"is_safe": True, "sql_result": results}
@@ -151,44 +193,40 @@ def security_guard_node(state: ConversationState) -> Dict[str, Any]:
 
 def insight_synthesizer_node(state: ConversationState) -> Dict[str, Any]:
     """
-    Node 8: Synthesizes final response with Key Findings, Supporting Data, and Suggestions.
+    Node 8: DeepSeek synthesizes the final human-readable response.
     """
-    intent = state.get("intent", "GENERAL_CHAT")
-    
     if not state.get("is_safe", True):
         return {"final_answer": f"Request blocked by Security Guard: {state.get('security_reason')}"}
 
-    if intent == "FORECAST":
-        fc = state.get("forecast_result", {})
-        if "prediction" in fc:
-            p = fc["prediction"]
-            summary = fc.get("plain_english_summary", "")
-            ans = f"Forecast for link:\n\n{summary}\n\nExpected: {p.get('estimated_clicks')} clicks (Range: {p.get('lower_bound_p10')} to {p.get('upper_bound_p90')} clicks)."
-        else:
-            ans = "Forecast unavailable: Insufficient data for this link."
+    system_prompt = """
+You are the LinkIT Conversational Analytics Assistant.
+Analyze the data collected by our analytics tools and provide a clear, professional answer.
 
-    elif intent == "SQL_QUERY":
-        res = state.get("sql_result", [])
-        ans = f"Query Results:\n{str(res)}"
+Structure your response with:
+1. Direct Answer / Key Finding
+2. Supporting Data Points (numbers, percentages, comparisons)
+3. Actionable Takeaway / Suggestion
 
-    elif intent == "ANOMALY_CHECK":
-        anoms = state.get("anomaly_result", [])
-        if anoms:
-            ans = f"Detected {len(anoms)} anomaly events for this link. Recent records indicate elevated latency or high bot activity."
-        else:
-            ans = "No critical anomalies detected for this link in the requested window."
+Keep your tone helpful, concise, and executive-ready.
+"""
+    data_context = {
+        "user_question": state["messages"][-1]["content"],
+        "intent": state.get("intent"),
+        "sql_result": state.get("sql_result"),
+        "forecast_result": state.get("forecast_result"),
+        "anomaly_result": state.get("anomaly_result"),
+        "comparison_result": state.get("comparison_result"),
+        "knowledge_result": state.get("knowledge_result"),
+    }
 
-    elif intent == "COMPARE_LINKS":
-        cmp_data = state.get("comparison_result", {})
-        ans = f"Link Comparison Summary:\n{str(cmp_data)}"
-
-    elif intent == "EXPLAIN_CONCEPT":
-        ans = state.get("knowledge_result", "Documentation information retrieved.")
-
-    else:
-        ans = "Hello! I am your LinkIT Conversational Analytics Assistant. You can ask me to forecast traffic, detect spikes, compare links, or explain metrics."
-
-    return {"final_answer": ans}
+    try:
+        response = llm.invoke([
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=f"Context from analytics tools:\n{json.dumps(data_context, default=str)}")
+        ])
+        return {"final_answer": response.content}
+    except Exception as e:
+        return {"final_answer": f"Analysis complete. Result: {data_context}"}
 
 
 def memory_writer_node(state: ConversationState) -> Dict[str, Any]:

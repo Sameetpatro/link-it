@@ -1,21 +1,28 @@
 """
 main.py
-FastAPI microservice exposing the LangGraph conversational analytics endpoint.
+FastAPI microservice running the DeepSeek-powered LangGraph agent.
 """
 
+import os
 from typing import List, Optional
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
+
+# Load .env
+load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
+load_dotenv()
+
 from graph import build_analytics_graph
 
-app = FastAPI(title="LinkIT Agentic Analytics Service", version="2.0.0")
+app = FastAPI(title="LinkIT DeepSeek Agentic Analytics", version="2.0.0")
 
-# Compile LangGraph app
+# Compile LangGraph
 analytics_agent = build_analytics_graph()
 
 
 class ChatRequest(BaseModel):
-    user_id: int
+    user_id: int = 1
     username: str = "sameet"
     message: str
     history: Optional[List[dict]] = []
@@ -23,14 +30,16 @@ class ChatRequest(BaseModel):
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "service": "linkit-agent-service"}
+    has_key = bool(os.getenv("DEEPSEEK_API") or os.getenv("DEEPSEEK_API_KEY"))
+    return {
+        "status": "ok",
+        "service": "linkit-deepseek-agent",
+        "deepseek_configured": has_key
+    }
 
 
 @app.post("/chat")
 def chat_with_analytics(req: ChatRequest):
-    """
-    Executes the multi-agent graph pipeline on the user prompt.
-    """
     try:
         initial_state = {
             "user_id": req.user_id,
@@ -48,12 +57,13 @@ def chat_with_analytics(req: ChatRequest):
             "final_answer": "",
         }
 
-        # Execute Graph
+        # Run LangGraph with DeepSeek LLM
         final_state = analytics_agent.invoke(initial_state)
 
         return {
             "answer": final_state["final_answer"],
             "intent": final_state.get("intent"),
+            "sql_query": final_state.get("sql_query"),
             "messages": final_state["messages"],
         }
     except Exception as e:

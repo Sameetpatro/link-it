@@ -1,6 +1,6 @@
 """
 tools.py
-Secure, tenant-scoped database execution, ML forecasting bridge, and ChromaDB search.
+Database and ML bridge tools.
 """
 
 import os
@@ -8,19 +8,24 @@ import requests
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from typing import List, Dict, Any
+from dotenv import load_dotenv
+
+# Load .env
+load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
+load_dotenv()
+
+
+def get_db_url() -> str:
+    return os.getenv("DATABASE_URL") or os.getenv("DB") or ""
 
 
 def execute_scoped_sql(query: str, user_id: int) -> List[Dict[str, Any]]:
-    """
-    Executes a read-only SQL query against PostgreSQL ensuring tenant isolation.
-    """
-    db_url = os.getenv("DATABASE_URL")
+    db_url = get_db_url()
     if not db_url:
-        raise ValueError("DATABASE_URL is not set.")
+        raise ValueError("DATABASE_URL / DB environment variable is not set.")
 
     conn = psycopg2.connect(db_url)
     with conn.cursor(cursor_factory=RealDictCursor) as cur:
-        # Extra safeguard: check if user owns the short codes referenced in the query
         cur.execute(query)
         rows = cur.fetchall()
     conn.close()
@@ -28,9 +33,6 @@ def execute_scoped_sql(query: str, user_id: int) -> List[Dict[str, Any]]:
 
 
 def get_traffic_forecast(short_code: str, days: int = 30) -> Dict[str, Any]:
-    """
-    Calls the Step 6 ML Service to retrieve Quantile Gradient Boosting predictions.
-    """
     ml_url = os.getenv("ML_SERVICE_URL", "http://localhost:8000")
     try:
         resp = requests.get(f"{ml_url}/predict/{short_code}?days={days}", timeout=5)
@@ -42,10 +44,7 @@ def get_traffic_forecast(short_code: str, days: int = 30) -> Dict[str, Any]:
 
 
 def get_detected_anomalies(short_code: str, user_id: int) -> List[Dict[str, Any]]:
-    """
-    Queries the database for abnormal traffic spikes or latency surges for a link.
-    """
-    db_url = os.getenv("DATABASE_URL")
+    db_url = get_db_url()
     if not db_url:
         return []
 
@@ -67,9 +66,6 @@ def get_detected_anomalies(short_code: str, user_id: int) -> List[Dict[str, Any]
 
 
 def search_knowledge_base(query: str) -> str:
-    """
-    Retrieves system documentation snippets from ChromaDB or static knowledge base.
-    """
     knowledge = {
         "p95": "P95 latency represents the 95th percentile response time, meaning 95% of redirect requests finished faster than this threshold.",
         "p50": "P50 is the median latency where 50% of requests are faster and 50% are slower.",
