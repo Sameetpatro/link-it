@@ -7,7 +7,7 @@
                                        │
 ┌──────────────────────────────────────▼──────────────────────────────────────┐
 │ ⏱️ STEP 4: 5-Minute Time-Bucket Traffic Aggregator                          │
-│ - Background cron/worker computing 5-min buckets (`traffic_aggregates`)      │
+│ - Background cron/worker computing 5-min buckets (`traffic_aggregates`)     │
 │ - Pre-computes P50/P95/P99 latency, bot traffic, unique visitors            │
 └──────────────────────────────────────┬──────────────────────────────────────┘
                                        │
